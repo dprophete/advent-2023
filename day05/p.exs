@@ -2,9 +2,8 @@
 
 defmodule P1 do
   # file: [:seeds, :phases]
-  # phase: [:name, :mappings]
-  # mapping: [:src, :dst, :len, :end]
-  # intersection: [:src, :end, :dst]
+  # phase: [:name, :projs]
+  # proj: [:src, :end, :dst]
   # interval: [:src, :end]
   def parse_file(filename) do
     [str_seeds | str_phases] =
@@ -19,27 +18,27 @@ defmodule P1 do
     phases =
       str_phases
       |> Enum.map(fn str_phase ->
-        [step_name, str_mappings] = String.split(str_phase, " map:\n")
+        [step_name, str_projs] = String.split(str_phase, " map:\n")
 
-        mappings =
-          str_mappings
+        projs =
+          str_projs
           |> String.split("\n", trim: true)
-          |> Enum.map(fn str_mapping ->
+          |> Enum.map(fn str_proj ->
             [dst, src, len] =
-              str_mapping |> String.split(" ") |> Enum.map(&String.to_integer/1)
+              str_proj |> String.split(" ") |> Enum.map(&String.to_integer/1)
 
-            [dst: dst, src: src, len: len, end: src + len - 1]
+            [src: src, end: src + len - 1, dst: dst]
           end)
-          |> Enum.sort_by(fn mapping -> mapping[:src] end)
+          |> Enum.sort_by(fn proj -> proj[:src] end)
 
-        [name: step_name, mappings: mappings]
+        [name: step_name, projs: projs]
       end)
 
     [seeds: seeds, phases: phases]
   end
 
-  def is_in_mapping(mapping, val) do
-    [dst: dst, src: src, len: _, end: end_] = mapping
+  def is_in_proj(proj, val) do
+    [src: src, end: end_, dst: dst] = proj
 
     cond do
       val < src -> {:halt, val}
@@ -49,7 +48,7 @@ defmodule P1 do
   end
 
   def dst_for_val(phase, val) do
-    Enum.reduce_while(phase[:mappings], val, &is_in_mapping/2)
+    Enum.reduce_while(phase[:projs], val, &is_in_proj/2)
   end
 
   def run(filename) do
@@ -66,18 +65,18 @@ defmodule P1 do
 end
 
 defmodule P2 do
-  def interval_for_intersection(intersection) do
-    [src: src, end: end_, dst: dst] = intersection
+  def proj_to_interval(proj) do
+    [src: src, end: end_, dst: dst] = proj
     [src: dst, end: dst + (end_ - src)]
   end
 
-  def intersections_for_mapping(mapping, {intersections, interval}) do
-    [dst: m_dst, src: m_src, len: _, end: m_end] = mapping
+  def add_projs_for_interval(proj, {projs, interval}) do
+    [src: m_src, end: m_end, dst: m_dst] = proj
     [src: i_src, end: i_end] = interval
 
-    intersection_left = [src: i_src, end: min(i_end, m_src - 1), dst: i_src]
+    proj_left = [src: i_src, end: min(i_end, m_src - 1), dst: i_src]
 
-    intersection_middle = [
+    proj_middle = [
       src: max(i_src, m_src),
       end: min(i_end, m_end),
       dst: m_dst + (max(i_src, m_src) - m_src)
@@ -85,46 +84,25 @@ defmodule P2 do
 
     interval_right = [src: max(i_src, m_end + 1), end: i_end]
 
-    cond do
-      i_end < m_src ->
-        # r:            [-------------]
-        # i:  [------]
-        {:halt, intersections ++ [intersection_left]}
+    potential_projs =
+      [proj_left, proj_middle]
+      |> Enum.filter(fn interval -> interval[:src] <= interval[:end] end)
 
-      i_src > m_end ->
-        # r:            [-------------]
-        # i:                             [------]
-        {:cont, {intersections, interval_right}}
+    upd_projs = projs ++ potential_projs
 
-      i_src >= m_src and i_end <= m_end ->
-        # r:            [-------------]
-        # i:                [----]
-        {:halt, intersections ++ [intersection_middle]}
-
-      i_src < m_src and i_end <= m_end ->
-        # r:            [-------------]
-        # i:        [------]
-        {:halt, intersections ++ [intersection_left, intersection_middle]}
-
-      i_src >= m_src and i_end > m_end ->
-        # r:            [-------------]
-        # i:                       [------]
-        {:cont, {intersections ++ [intersection_middle], interval_right}}
-
-      i_src < m_src and i_end > m_end ->
-        # r:            [-------------]
-        # i:        [---------------------]
-        {:cont, {intersections ++ [intersection_left, intersection_middle], interval_right}}
+    case interval_right[:src] <= interval_right[:end] do
+      true -> {:cont, {upd_projs, interval_right}}
+      false -> {:halt, upd_projs}
     end
   end
 
-  def intersections_for_mappings(mappings, interval) do
-    case mappings |> Enum.reduce_while({[], interval}, &intersections_for_mapping/2) do
-      {intersections, [src: i_src, end: i_end]} ->
-        intersections ++ [[src: i_src, end: i_end, dst: i_src]]
+  def upd_projs_for_interval(projs, interval) do
+    case projs |> Enum.reduce_while({[], interval}, &add_projs_for_interval/2) do
+      {upd_projs, [src: i_src, end: i_end]} ->
+        upd_projs ++ [[src: i_src, end: i_end, dst: i_src]]
 
-      intersections ->
-        intersections
+      upd_projs ->
+        upd_projs
     end
   end
 
@@ -142,9 +120,9 @@ defmodule P2 do
       |> Enum.reduce(intervals, fn phase, intervals ->
         res =
           for interval <- intervals do
-            phase[:mappings]
-            |> intersections_for_mappings(interval)
-            |> Enum.map(&interval_for_intersection/1)
+            phase[:projs]
+            |> upd_projs_for_interval(interval)
+            |> Enum.map(&proj_to_interval/1)
           end
           |> Enum.concat()
 
@@ -162,6 +140,6 @@ defmodule P2 do
 end
 
 # P1.run("sample.txt")
-# P1.run("input.txt")
+P1.run("input.txt")
 # P2.run("sample.txt")
 P2.run("input.txt")
