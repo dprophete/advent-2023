@@ -79,28 +79,21 @@ end
 defmodule P2 do
   @j ?0
 
-  def without_1([c0, c1, c2, c3, _c4]) do
-    [c0, c1, c2, c3, ?a]
-  end
-
-  def without_2([c0, c1, c2, _c3, _c4]) do
-    [c0, c1, c2, ?b, ?a]
-  end
-
-  def without_3([c0, c1, _c2, _c3, _c4]) do
-    [c0, c1, ?c, ?b, ?a]
-  end
-
-  def without_4([c0, _c1, _c2, _c3, _c4]) do
-    [c0, ?d, ?c, ?b, ?a]
+  def without_n(hand, n) do
+    hand
+    |> Enum.reverse()
+    |> Enum.drop(n)
+    |> then(fn x -> [?a, ?b, ?c, ?d, ?e] ++ x end)
+    |> Enum.reverse()
+    |> Enum.take(5)
   end
 
   def is_five_of_a_kind([_c0, c1, c2, c3, c4] = hand) do
     cond do
       P1.is_five_of_a_kind(hand) -> true
-      c4 == @j && P1.is_four_of_a_kind(without_1(hand)) -> true
-      [c3, c4] == [@j, @j] && P1.is_three_of_a_kind(without_2(hand)) -> true
-      [c2, c3, c4] == [@j, @j, @j] && P1.is_pair(without_3(hand)) -> true
+      c4 == @j && P1.is_four_of_a_kind(without_n(hand, 1)) -> true
+      [c3, c4] == [@j, @j] && P1.is_three_of_a_kind(without_n(hand, 2)) -> true
+      [c2, c3, c4] == [@j, @j, @j] && P1.is_pair(without_n(hand, 3)) -> true
       [c1, c2, c3, c4] == [@j, @j, @j, @j] -> true
       true -> false
     end
@@ -109,8 +102,8 @@ defmodule P2 do
   def is_four_of_a_kind([_c0, _c1, c2, c3, c4] = hand) do
     cond do
       P1.is_four_of_a_kind(hand) -> true
-      c4 == @j && P1.is_three_of_a_kind(without_1(hand)) -> true
-      [c3, c4] == [@j, @j] && P1.is_pair(without_2(hand)) -> true
+      c4 == @j && P1.is_three_of_a_kind(without_n(hand, 1)) -> true
+      [c3, c4] == [@j, @j] && P1.is_pair(without_n(hand, 2)) -> true
       [c2, c3, c4] == [@j, @j, @j] -> true
       true -> false
     end
@@ -119,9 +112,9 @@ defmodule P2 do
   def is_full_house([_c0, _c1, _c2, c3, c4] = hand) do
     cond do
       P1.is_full_house(hand) -> true
-      c4 == @j && P1.is_two_pairs(without_1(hand)) -> true
-      c4 == @j && P1.is_three_of_a_kind(without_1(hand)) -> true
-      [c3, c4] == [@j, @j] && P1.is_pair(without_2(hand)) -> true
+      c4 == @j && P1.is_two_pairs(without_n(hand, 1)) -> true
+      c4 == @j && P1.is_three_of_a_kind(without_n(hand, 1)) -> true
+      [c3, c4] == [@j, @j] && P1.is_pair(without_n(hand, 2)) -> true
       true -> false
     end
   end
@@ -129,7 +122,7 @@ defmodule P2 do
   def is_three_of_a_kind([_c0, _c1, _c2, c3, c4] = hand) do
     cond do
       P1.is_three_of_a_kind(hand) -> true
-      c4 == @j && P1.is_pair(without_1(hand)) -> true
+      c4 == @j && P1.is_pair(without_n(hand, 1)) -> true
       [c3, c4] == [@j, @j] -> true
       true -> false
     end
@@ -138,7 +131,7 @@ defmodule P2 do
   def is_two_pairs([_c0, _c1, _c2, _c3, c4] = hand) do
     cond do
       P1.is_two_pairs(hand) -> true
-      c4 == @j && P1.is_pair(without_1(hand)) -> true
+      c4 == @j && P1.is_pair(without_n(hand, 1)) -> true
       true -> false
     end
   end
