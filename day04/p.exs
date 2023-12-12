@@ -3,31 +3,23 @@
 defmodule P1 do
   def parse_line(line) do
     [_, rest] = String.split(line, ": ")
-    [left, right] = String.split(rest, " | ")
 
-    wining_nbs =
-      Regex.scan(~r/\d+/, left)
-      |> Enum.map(&List.first/1)
-      |> Enum.map(&String.to_integer/1)
-      |> MapSet.new()
-
-    my_nbs =
-      Regex.scan(~r/\d+/, right)
-      |> Enum.map(&List.first/1)
-      |> Enum.map(&String.to_integer/1)
-      |> MapSet.new()
-
-    wining_nbs
-    |> MapSet.intersection(my_nbs)
-    |> MapSet.size()
+    for nbs <- String.split(rest, " | ") do
+      for [nb] <- Regex.scan(~r/\d+/, nbs), into: MapSet.new() do
+        String.to_integer(nb)
+      end
+    end
   end
 
   def run(filename) do
-    File.read!(filename)
-    |> String.split("\n", trim: true)
-    |> Enum.map(&parse_line/1)
-    |> Enum.filter(&(&1 > 0))
-    |> Enum.map(&(2 ** (&1 - 1)))
+    for line <- File.read!(filename) |> String.split("\n", trim: true) do
+      [winning_nbs, my_nbs] = parse_line(line)
+
+      case winning_nbs |> MapSet.intersection(my_nbs) |> MapSet.size() do
+        0 -> 0
+        nb -> 2 ** (nb - 1)
+      end
+    end
     |> Enum.sum()
     |> IO.puts()
   end
@@ -53,9 +45,10 @@ defmodule P2 do
   end
 
   def run(filename) do
-    File.read!(filename)
-    |> String.split("\n", trim: true)
-    |> Enum.map(&P1.parse_line/1)
+    for line <- File.read!(filename) |> String.split("\n", trim: true) do
+      [winning_nbs, my_nbs] = P1.parse_line(line)
+      winning_nbs |> MapSet.intersection(my_nbs) |> MapSet.size()
+    end
     |> Enum.with_index(1)
     |> Enum.reduce({%{}, 0}, &handle_new_wins/2)
     |> then(fn {_cards_gained, gains} -> gains end)
