@@ -79,6 +79,7 @@ end
 defmodule P2 do
   @j ?0
 
+  # drop n cards from the back of the hand and replace them by unique low cards
   def without_n(hand, n) do
     hand
     |> Enum.reverse()
