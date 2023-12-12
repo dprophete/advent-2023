@@ -12,7 +12,7 @@ def compute_next_row(row):
 
 
 def is_final_row(row):
-    return len(row) == 1 or all(x == 0 for x in row)
+    return all(x == 0 for x in row)
 
 
 def process_history(history):
