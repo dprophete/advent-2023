@@ -92,22 +92,21 @@ defmodule P2 do
     |> Enum.map(fn {_, y} -> y end)
   end
 
-  def distance({x1, y1}, {x2, y2}, multiplier, empty_rows, empty_cols) do
-    base = abs(x2 - x1) + abs(y2 - y1)
-    {x1, x2} = sort({x1, x2})
-    {y1, y2} = sort({y1, y2})
-    extra_x = Enum.count(empty_cols, fn x -> x1 < x && x < x2 end)
-    extra_y = Enum.count(empty_rows, fn y -> y1 < y && y < y2 end)
-    base + (extra_x + extra_y) * (multiplier - 1)
+  def distance(p1, p2, expansion, empty_rows, empty_cols) do
+    {x1, x2} = sort(p1)
+    {y1, y2} = sort(p2)
+    extra_cols = Enum.count(empty_cols, fn x -> x1 < x && x < x2 end)
+    extra_rows = Enum.count(empty_rows, fn y -> y1 < y && y < y2 end)
+    P1.distance(p1, p2) + (extra_cols + extra_rows) * (expansion - 1)
   end
 
-  def all_distances(stars, multiplier, empty_rows, empty_cols) do
+  def all_distances(stars, expansion, empty_rows, empty_cols) do
     for star1 <- stars, star2 <- stars, star1 != star2 do
-      distance(star1, star2, multiplier, empty_rows, empty_cols)
+      distance(star1, star2, expansion, empty_rows, empty_cols)
     end
   end
 
-  def run(filename, multiplier) do
+  def run(filename, expansion) do
     galaxy = P1.parse_file(filename)
     stars = P1.find_stars(galaxy)
 
@@ -116,7 +115,7 @@ defmodule P2 do
     empty_rows = galaxy |> find_empty_rows
     empty_cols = galaxy |> P1.transpose() |> find_empty_rows
 
-    all_distances(stars, multiplier, empty_rows, empty_cols)
+    all_distances(stars, expansion, empty_rows, empty_cols)
     |> Enum.sum()
     |> then(&div(&1, 2))
     |> IO.puts()
