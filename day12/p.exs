@@ -100,7 +100,7 @@ defmodule P1 do
       spring = "." <> spring <> "."
 
       # small optimization: a sequence of '...' is the same as a single '.'
-      spring = Regex.replace(~r/\.+/, spring, ".") |> dbg
+      spring = Regex.replace(~r/\.+/, spring, ".")
       spring = String.to_charlist(spring)
 
       arrangements = process_spring({spring, damages})
@@ -144,8 +144,8 @@ end
 
 # 4 1 1 4 10
 # P1.run("sample.txt")
-# P1.run("input.txt")
-P2.run("sample.txt")
+P1.run("input.txt")
+# P2.run("sample.txt")
 # P2.run("input.txt")
 
 # time to beat:
