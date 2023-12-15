@@ -10,7 +10,7 @@ defmodule P1 do
       # line = "###?.#???.?#.# 4,2,2,1"
       [springs, rest] = String.split(line, " ")
       damages = rest |> String.split(",") |> Enum.map(&String.to_integer/1)
-      {String.to_charlist(springs), damages}
+      {springs, damages}
     end
   end
 
@@ -97,7 +97,12 @@ defmodule P1 do
 
   def run(filename) do
     for {spring, damages} <- parse_file(filename) do
-      spring = [?.] ++ spring ++ [?.]
+      spring = "." <> spring <> "."
+
+      # small optimization: a sequence of '...' is the same as a single '.'
+      spring = Regex.replace(~r/\.+/, spring, ".") |> dbg
+      spring = String.to_charlist(spring)
+
       arrangements = process_spring({spring, damages})
 
       IO.puts(
@@ -115,9 +120,11 @@ end
 defmodule P2 do
   def run(filename) do
     for {{spring, damages}, idx} <- P1.parse_file(filename) |> Enum.with_index() do
-      spring =
-        [?.] ++
-          spring ++ [??] ++ spring ++ [??] ++ spring ++ [??] ++ spring ++ [??] ++ spring ++ [?.]
+      spring = "." <> Enum.join([spring, spring, spring, spring, spring], "?") <> "."
+
+      # small optimization: a sequence of '...' is the same as a single '.'
+      spring = Regex.replace(~r/\.+/, spring, ".")
+      spring = String.to_charlist(spring)
 
       damages = damages ++ damages ++ damages ++ damages ++ damages
       arrangements = P1.process_spring({spring, damages})
@@ -138,8 +145,8 @@ end
 # 4 1 1 4 10
 # P1.run("sample.txt")
 # P1.run("input.txt")
-# P2.run("sample.txt")
-P2.run("input.txt")
+P2.run("sample.txt")
+# P2.run("input.txt")
 
 # time to beat:
 #  ~/tmp/advent-2023/day12 (main*) » time ./p.exs 
