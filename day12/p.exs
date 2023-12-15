@@ -7,52 +7,81 @@ defmodule P1 do
 
   def parse_file(filename) do
     for line <- File.read!(filename) |> String.split("\n", trim: true) do
+      # line = "###?.#???.?#.# 4,2,2,1"
       [springs, rest] = String.split(line, " ")
       damages = rest |> String.split(",") |> Enum.map(&String.to_integer/1)
       {String.to_charlist(springs), damages}
     end
   end
 
-  def find_range_of_len(spring, start_idx, damage) do
+  def find_range_of_len(spring, start_idx, damage, nb_damages_remaining) do
     # we need to find a range of damage damage starting at idx start_idx, made of either ? or .
     # IO.puts("tring for spring #{spring}, start_idx #{start_idx}, damage #{damage}")
 
-    start_idx..(length(spring) - damage)
-    |> Enum.filter(fn idx ->
+    len = length(spring)
+
+    start_idx..len
+    |> Enum.reduce_while([], fn idx, acc ->
       c_before = Enum.at(spring, idx - 1)
       c_after = Enum.at(spring, idx + damage)
 
-      # IO.puts(
-      #   "  at idx #{idx} c_before #{to_string([c_before])}, range #{Enum.slice(spring, idx, damage)},  c_after #{to_string([c_after])}"
-      # )
+      # valid if:
+      # - we have space before
+      # - we have space after
+      # -all the elements of the range are available
+      # - we have enough spots for the remaining damages
+      # - we don't have too many spots
+      is_valid =
+        (c_before == ?. || c_before == ??) &&
+          (c_after == ?. || c_after == ??) &&
+          spring |> Enum.slice(idx, damage) |> Enum.all?(fn c -> c == ?# or c == ?? end) &&
+          spring
+          |> Enum.slice(idx + damage + 1, len)
+          |> then(fn rest ->
+            rest |> Enum.count(fn c -> c == ?# || c == ?? end) >= nb_damages_remaining &&
+              rest |> Enum.count(fn c -> c == ?# end) <= nb_damages_remaining
+          end)
 
-      (c_before == ?. || c_before == ??) &&
-        (c_after == ?. || c_after == ??) &&
-        spring |> Enum.slice(idx, damage) |> Enum.all?(fn c -> c == ?# or c == ?? end)
+      case is_valid do
+        true ->
+          {:cont, [idx | acc]}
+
+        false ->
+          # note that we can not skip any #
+          if spring
+             |> Enum.slice(start_idx, idx - start_idx + 1)
+             |> Enum.any?(fn c -> c == ?# == true end) do
+            {:halt, acc}
+          else
+            {:cont, acc}
+          end
+      end
     end)
   end
 
-  def put_damage_at(spring, idx, damage) do
-    middle = [?.] ++ List.duplicate(?#, damage) ++ [?.]
-    first = Enum.slice(spring, 0, idx - 1)
-    last = Enum.slice(spring, idx + damage + 1, length(spring) - idx - damage)
-    first ++ middle ++ last
-  end
+  # def put_damage_at(spring, idx, damage) do
+  #   middle = List.duplicate(?#, damage)
+  #   first = Enum.slice(spring, 0, idx)
+  #   last = Enum.slice(spring, idx + damage, length(spring) - idx - damage + 1)
+  #   first ++ middle ++ last
+  # end
 
   def process_spring({spring, damages}) do
     nb_damages = Enum.sum(damages)
 
     damages
-    |> Enum.reduce([{0, spring}], fn damage, acc ->
+    |> Enum.reduce([{0, 0, nb_damages}], fn damage, acc ->
       acc
-      |> Enum.flat_map(fn {idx, spring} ->
-        find_range_of_len(spring, idx, damage)
-        |> Enum.map(fn idx -> {idx + damage + 1, put_damage_at(spring, idx, damage)} end)
+      |> Enum.flat_map(fn {idx, nb_used_damages, nb_damages_remaining} ->
+        nb_damages_remaining = nb_damages_remaining - damage
+
+        find_range_of_len(spring, idx, damage, nb_damages_remaining)
+        |> Enum.map(fn idx ->
+          {idx + damage + 1, nb_used_damages + damage, nb_damages_remaining}
+        end)
       end)
     end)
     |> Enum.map(&elem(&1, 1))
-    |> Enum.uniq()
-    |> Enum.filter(fn spring -> spring |> Enum.count(fn c -> c == ?# end) == nb_damages end)
   end
 
   def pp_row({spring, damages}), do: "spring #{pp_spring(spring)} #{inspect(damages)}"
@@ -72,7 +101,8 @@ defmodule P1 do
       arrangements = process_spring({spring, damages})
 
       IO.puts(
-        "#{pp_row({spring, damages})} -> count #{length(arrangements)}\n#{pp_arrangements(arrangements)}\n"
+        # "#{pp_row({spring, damages})} -> count #{length(arrangements)}\n#{pp_arrangements(arrangements)}\n"
+        "#{pp_row({spring, damages})} -> count #{length(arrangements)}"
       )
 
       length(arrangements)
@@ -84,7 +114,7 @@ end
 
 defmodule P2 do
   def run(filename) do
-    for {{spring, damages}, idx} <- P1.parse_file(filename) |> Enum.with_index() |> Enum.take(6) do
+    for {{spring, damages}, idx} <- P1.parse_file(filename) |> Enum.with_index() do
       spring =
         [?.] ++
           spring ++ [??] ++ spring ++ [??] ++ spring ++ [??] ++ spring ++ [??] ++ spring ++ [?.]
@@ -105,10 +135,11 @@ defmodule P2 do
   end
 end
 
+# 4 1 1 4 10
 # P1.run("sample.txt")
-P1.run("input.txt")
+# P1.run("input.txt")
 # P2.run("sample.txt")
-# P2.run("input.txt")
+P2.run("input.txt")
 
 # time to beat:
 #  ~/tmp/advent-2023/day12 (main*) » time ./p.exs 
@@ -130,3 +161,33 @@ P1.run("input.txt")
 # #row 5 -> count 506250
 # total: 525152
 # ./p.exs  92.62s user 12.58s system 98% cpu 1:47.07 total
+#
+#
+# #row 0 -> count 1
+# #row 1 -> count 16384
+# #row 2 -> count 1
+# #row 3 -> count 16
+# #row 4 -> count 2500
+# #row 5 -> count 506250
+# total: 525152
+# ./p.exs  8.75s user 1.11s system 102% cpu 9.587 total
+#
+#
+# #row 0 -> count 1
+# #row 1 -> count 16384
+# #row 2 -> count 1
+# #row 3 -> count 16
+# #row 4 -> count 2500
+# #row 5 -> count 506250
+# total: 525152
+# ./p.exs  3.41s user 0.73s system 112% cpu 3.690 total
+#
+#
+# #row 0 -> count 1
+# #row 1 -> count 16384
+# #row 2 -> count 1
+# #row 3 -> count 16
+# #row 4 -> count 2500
+# #row 5 -> count 506250
+# total: 525152
+# ./p.exs  1.32s user 0.55s system 137% cpu 1.358 total
