@@ -21,11 +21,10 @@ defmodule P1 do
         above = row_idx - i
         below = row_idx + 1 + i
 
-        # IO.puts(
-        #   "comparing #{above} and #{below} -> #{Enum.at(pattern, above) == Enum.at(pattern, below)}"
-        # )
+        row_above = Enum.at(pattern, above)
+        row_below = Enum.at(pattern, below)
 
-        case Enum.at(pattern, above) == Enum.at(pattern, below) do
+        case row_above == row_below do
           true -> {:cont, [above, below]}
           false -> {:halt, acc}
         end
@@ -33,8 +32,6 @@ defmodule P1 do
 
     # it only counts if we reached the one of the sides
     nb_rows = Enum.count(pattern) - 1
-
-    # dbg(res)
 
     case res do
       [0, _] -> row_idx + 1
@@ -47,17 +44,15 @@ defmodule P1 do
     nb_rows = Enum.count(pattern)
 
     0..(nb_rows - 1)
-    |> Enum.map(fn i ->
-      find_reflection_after_row(pattern, i)
-    end)
+    |> Enum.map(&find_reflection_after_row(pattern, &1))
     |> Enum.max()
   end
 
   def run(filename) do
-    for pattern <- parse_file(filename) do
+    for {pattern, idx} <- parse_file(filename) |> Enum.with_index() do
       hori = pattern |> find_reflections()
       vert = pattern |> transpose |> find_reflections()
-      hori * 100 + vert
+      (hori * 100 + vert) |> IO.inspect(label: "pattern #{idx}")
     end
     |> Enum.sum()
     |> IO.inspect(label: "total")
@@ -65,9 +60,19 @@ defmodule P1 do
 end
 
 defmodule P2 do
+  def run(filename) do
+    for {pattern, idx} <- P1.parse_file(filename) |> Enum.with_index() do
+      hori = pattern |> P1.find_reflections()
+      vert = pattern |> P1.transpose() |> P1.find_reflections()
+      (hori * 100 + vert) |> IO.inspect(label: "pattern #{idx}")
+    end
+    |> Enum.sum()
+    |> IO.inspect(label: "total")
+  end
 end
 
 # P1.run("sample.txt")
-P1.run("input.txt")
-# P2.run("sample.txt")
+# P1.run("input.txt")
+P2.run("sample.txt")
 # P2.run("input.txt")
+#
