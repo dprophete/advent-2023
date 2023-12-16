@@ -107,12 +107,11 @@ defmodule P1 do
 end
 
 defmodule P2 do
-  @cache %{}
+  def tilt(platform, cache) do
+    key = platform
 
-  def tilt(platform) do
-    if Map.has_key?(@cache, platform) do
-      IO.puts("!!!!!!! cache hit")
-      Map.get(@cache, platform)
+    if Map.has_key?(cache, key) do
+      {:hit, Map.get(cache, key), cache}
     else
       new_platform =
         platform
@@ -121,37 +120,60 @@ defmodule P2 do
         |> P1.full_move_south()
         |> P1.full_move_east()
 
-      Map.put(@cache, platform, new_platform)
-      new_platform
+      {:fail, new_platform, Map.put(cache, key, new_platform)}
     end
   end
 
   def run(filename) do
     platform = P1.parse_file(filename)
 
+    nb = 1_000_000_000
+
+    {platform, cache, i} =
+      1..nb
+      |> Enum.reduce_while({platform, %{}, -1}, fn i, {platform, cache, _} ->
+        {hit?, platform, cache} = tilt(platform, cache)
+
+        case hit? do
+          :hit -> {:halt, {platform, cache, i}}
+          :fail -> {:cont, {platform, cache, -1}}
+        end
+      end)
+
+    IO.puts("got into cache at: #{i}")
+
+    cycle =
+      0..i
+      |> Enum.reduce_while({platform, MapSet.new()}, fn j, {platform, set} ->
+        {_, platform, _} = tilt(platform, cache)
+
+        case MapSet.member?(set, platform) do
+          true -> {:halt, j}
+          false -> {:cont, {platform, MapSet.put(set, platform)}}
+        end
+      end)
+
+    IO.puts("got a cycle of: #{cycle}")
+
+    left = nb - i - 1
+    left = rem(left, cycle)
+
+    IO.puts("left: #{left}")
+
+    {platform, _} =
+      0..left
+      |> Enum.reduce({platform, cache}, fn _, {platform, cache} ->
+        {_, platform, cache} = tilt(platform, cache)
+        {platform, cache}
+      end)
+
     platform
-    |> P1.pp("original")
-    |> tilt()
-    |> tilt()
-    |> tilt()
-    |> P1.pp("after 3 tilt")
     |> P1.weigh()
     |> IO.inspect(label: "total")
-
-    0..10_000
-    |> Enum.reduce_while(platform, fn i, platform ->
-      new_platform = tilt(platform)
-
-      case new_platform == platform do
-        true -> {:halt, {:ok, platform, i}}
-        false -> {:cont, new_platform}
-      end
-    end)
-    |> IO.inspect(label: "after 10_000 tilt")
   end
 end
 
 # P1.run("sample.txt")
-P1.run("input.txt")
+# P1.run("input.txt")
 # P2.run("sample.txt")
-# P2.run("input.txt")
+P2.run("input.txt")
