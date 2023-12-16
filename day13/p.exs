@@ -94,19 +94,8 @@ defmodule P2 do
                 |> Enum.filter(fn {{a, b}, _} -> a != b end)
 
               case diffs do
-                [{_, flip_col}] ->
-                  # IO.puts(
-                  #   "rows #{row_above} (#{above + 1}) and #{row_below} (#{below + 1}) are different, nb diffs: #{Enum.count(diffs)}"
-                  # )
-
-                  IO.puts(
-                    "flipping #{flip_col + 1}th char of row #{row_above} (#{above + 1}) -> continuing"
-                  )
-
-                  {:cont, {[above, below], :flipped}}
-
-                _ ->
-                  {:halt, acc}
+                [{_, flip_col}] -> {:cont, {[above, below], :flipped}}
+                _ -> {:halt, acc}
               end
             else
               {:halt, acc}
