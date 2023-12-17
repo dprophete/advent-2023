@@ -62,52 +62,33 @@ defmodule P1 do
   def mv({x, y}, :left), do: {x - 1, y}
   def mv({x, y}, :right), do: {x + 1, y}
 
-  def nx(maze, {p0, dir}) do
-    w = Cache.get(:w)
-    h = Cache.get(:h)
+  def nx_dirs(?., dir), do: [dir]
 
+  def nx_dirs(?\\, :right), do: [:down]
+  def nx_dirs(?\\, :left), do: [:up]
+  def nx_dirs(?\\, :up), do: [:left]
+  def nx_dirs(?\\, :down), do: [:right]
+
+  def nx_dirs(?/, :right), do: [:up]
+  def nx_dirs(?/, :left), do: [:down]
+  def nx_dirs(?/, :up), do: [:right]
+  def nx_dirs(?/, :down), do: [:left]
+
+  def nx_dirs(?-, :up), do: [:left, :right]
+  def nx_dirs(?-, :down), do: [:left, :right]
+  def nx_dirs(?-, dir), do: [dir]
+
+  def nx_dirs(?|, :right), do: [:up, :down]
+  def nx_dirs(?|, :left), do: [:up, :down]
+  def nx_dirs(?|, dir), do: [dir]
+
+  def nx(maze, {p0, dir}) do
     p1 = mv(p0, dir)
 
     case at(maze, p1) do
-      :wall ->
-        []
-
-      ?. ->
-        [{p1, dir}]
-
-      ?\\ ->
-        case dir do
-          :right -> [{p1, :down}]
-          :left -> [{p1, :up}]
-          :up -> [{p1, :left}]
-          :down -> [{p1, :right}]
-        end
-
-      ?/ ->
-        case dir do
-          :right -> [{p1, :up}]
-          :left -> [{p1, :down}]
-          :up -> [{p1, :right}]
-          :down -> [{p1, :left}]
-        end
-
-      ?- ->
-        case dir do
-          :right -> [{p1, dir}]
-          :left -> [{p1, dir}]
-          :up -> [{p1, :left}, {p1, :right}]
-          :down -> [{p1, :left}, {p1, :right}]
-        end
-
-      ?| ->
-        case dir do
-          :up -> [{p1, dir}]
-          :down -> [{p1, dir}]
-          :left -> [{p1, :up}, {p1, :down}]
-          :right -> [{p1, :up}, {p1, :down}]
-        end
+      :wall -> []
+      c -> nx_dirs(c, dir) |> Enum.map(fn dir -> {p1, dir} end)
     end
-    |> Enum.filter(fn {{x, y}, _} -> x >= 0 && y >= 0 && x < w && y < h end)
   end
 
   def move_one(maze, beams, visited, step) do
@@ -134,9 +115,6 @@ defmodule P1 do
     maze = parse_file(filename)
     Cache.put(:h, maze |> Enum.count())
     Cache.put(:w, Enum.at(maze, 0) |> Enum.count())
-
-    w = Cache.get(:w)
-    h = Cache.get(:h)
 
     beams = [{{0, 0}, :right}]
     visited = MapSet.new()
