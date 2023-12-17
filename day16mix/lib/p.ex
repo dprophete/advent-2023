@@ -91,7 +91,7 @@ defmodule P1 do
     end
   end
 
-  def move_one(maze, beams, visited, step) do
+  def light_beam(maze, beams, visited, step) do
     # IO.inspect("[DDA] step #{step} beam #{inspect(beams)}, visited #{Enum.count(visited)}")
 
     visited =
@@ -107,25 +107,46 @@ defmodule P1 do
         visited
 
       _ ->
-        move_one(maze, nx_beams, visited, step + 1)
+        light_beam(maze, nx_beams, visited, step + 1)
     end
+  end
+
+  def pp_beam(light_beam) do
+    w = Cache.get(:w)
+    h = Cache.get(:h)
+
+    for y <- 0..(h - 1) do
+      for x <- 0..(w - 1) do
+        if MapSet.member?(light_beam, {x, y}) do
+          IO.write("#")
+        else
+          IO.write(".")
+        end
+      end
+
+      IO.write("\n")
+    end
+
+    light_beam
   end
 
   def run(filename) do
     maze = parse_file(filename)
-    Cache.put(:h, maze |> Enum.count())
-    Cache.put(:w, Enum.at(maze, 0) |> Enum.count())
+    w = maze |> Enum.count()
+    h = Enum.at(maze, 0) |> Enum.count()
+    Cache.put(:h, h)
+    Cache.put(:w, w)
 
-    beams = [{{0, 0}, :right}]
+    beams = [{{-1, 0}, :right}]
     visited = MapSet.new()
 
-    move_one(maze, beams, visited, 0)
+    light_beam(maze, beams, visited, 0)
     |> MapSet.to_list()
-    |> Enum.map(fn {{x, y}, _} -> {x + 1, y + 1} end)
+    |> Enum.map(fn {p, _} -> p end)
+    |> Enum.filter(fn {x, y} -> x >= 0 && y >= 0 && x < w && y < h end)
     |> MapSet.new()
+    |> pp_beam()
     |> MapSet.to_list()
-    |> Enum.sort()
-    # |> IO.inspect(label: "[DDA] MapSet")
     |> Enum.count()
     |> IO.inspect(label: "[DDA] visited")
   end
@@ -135,7 +156,7 @@ defmodule P2 do
 end
 
 Cache.setup()
-# P1.run("sample.txt")
-P1.run("input.txt")
+P1.run("sample.txt")
+# P1.run("input.txt")
 # P2.run("sample.txt")
 # P2.run("input.txt")
