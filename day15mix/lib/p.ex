@@ -25,6 +25,17 @@ defmodule Cache do
         val
     end
   end
+
+  def put(key, val) do
+    :ets.insert(:cache, {key, val})
+  end
+
+  def get(key) do
+    case :ets.lookup(:cache, key) do
+      [{_, val}] -> val
+      _ -> nil
+    end
+  end
 end
 
 defmodule P1 do
@@ -53,10 +64,76 @@ defmodule P1 do
 end
 
 defmodule P2 do
+  def run(filename) do
+    boxes = %{}
+
+    steps =
+      for step <- P1.parse_file(filename) do
+        case String.split(step, "=") do
+          [label, focal_lenght] -> {:equal, label, String.to_integer(focal_lenght)}
+          _ -> {:minus, String.slice(step, 0, String.length(step) - 1)}
+        end
+      end
+
+    boxes =
+      steps
+      |> Enum.reduce(boxes, fn step, boxes ->
+        label =
+          case step do
+            {:equal, label, _} -> label
+            {:minus, label} -> label
+          end
+
+        box_to_goto = P1.hash_str(label)
+        content = Map.get(boxes, box_to_goto, [])
+
+        content =
+          case step do
+            {:equal, label, focal_length} ->
+              case Enum.find(content, fn {lbl, _} -> lbl == label end) do
+                nil ->
+                  content ++ [{label, focal_length}]
+
+                _ ->
+                  content
+                  |> Enum.map(fn {lbl, fl} ->
+                    case lbl == label do
+                      true -> {lbl, focal_length}
+                      false -> {lbl, fl}
+                    end
+                  end)
+              end
+
+            {:minus, label} ->
+              content |> Enum.reject(fn {lbl, _} -> lbl == label end)
+          end
+
+        case content do
+          [] -> Map.delete(boxes, box_to_goto)
+          _ -> Map.put(boxes, box_to_goto, content)
+        end
+      end)
+
+    boxes
+    |> Map.to_list()
+    |> Enum.map(fn {box_nb, content} ->
+      (1 + box_nb) *
+        (content
+         |> Enum.with_index()
+         |> Enum.map(fn {{_, fl}, idx} -> fl * (idx + 1) end)
+         |> Enum.sum())
+    end)
+    |> Enum.sum()
+    |> IO.inspect(label: "[DDA] total")
+
+    # |> Enum.map(&P1.hash_str/1)
+    # |> Enum.sum()
+    # |> IO.inspect()
+  end
 end
 
 Cache.setup()
 # P1.run("sample.txt")
-P1.run("input.txt")
+# P1.run("input.txt")
 # P2.run("sample.txt")
-# P2.run("input.txt")
+P2.run("input.txt")
