@@ -91,7 +91,7 @@ defmodule P1 do
     end
   end
 
-  def light_beam(maze, beams, visited, step) do
+  def light_beams(maze, beams, visited, step) do
     # IO.inspect("[DDA] step #{step} beam #{inspect(beams)}, visited #{Enum.count(visited)}")
 
     visited =
@@ -107,17 +107,17 @@ defmodule P1 do
         visited
 
       _ ->
-        light_beam(maze, nx_beams, visited, step + 1)
+        light_beams(maze, nx_beams, visited, step + 1)
     end
   end
 
-  def pp_beam(light_beam) do
+  def pp_beams(light_beams) do
     w = Cache.get(:w)
     h = Cache.get(:h)
 
     for y <- 0..(h - 1) do
       for x <- 0..(w - 1) do
-        if MapSet.member?(light_beam, {x, y}) do
+        if MapSet.member?(light_beams, {x, y}) do
           IO.write("#")
         else
           IO.write(".")
@@ -127,7 +127,23 @@ defmodule P1 do
       IO.write("\n")
     end
 
-    light_beam
+    light_beams
+  end
+
+  def solve_for(maze, p0, dir) do
+    w = Cache.get(:w)
+    h = Cache.get(:h)
+
+    beams = [{p0, dir}]
+    visited = MapSet.new()
+
+    light_beams(maze, beams, visited, 0)
+    |> MapSet.to_list()
+    |> Enum.map(fn {p, _} -> p end)
+    |> Enum.filter(fn {x, y} -> x >= 0 && y >= 0 && x < w && y < h end)
+    |> MapSet.new()
+    |> MapSet.to_list()
+    |> Enum.count()
   end
 
   def run(filename) do
@@ -137,26 +153,33 @@ defmodule P1 do
     Cache.put(:h, h)
     Cache.put(:w, w)
 
-    beams = [{{-1, 0}, :right}]
-    visited = MapSet.new()
-
-    light_beam(maze, beams, visited, 0)
-    |> MapSet.to_list()
-    |> Enum.map(fn {p, _} -> p end)
-    |> Enum.filter(fn {x, y} -> x >= 0 && y >= 0 && x < w && y < h end)
-    |> MapSet.new()
-    |> pp_beam()
-    |> MapSet.to_list()
-    |> Enum.count()
+    solve_for(maze, {-1, 0}, :right)
     |> IO.inspect(label: "[DDA] visited")
   end
 end
 
 defmodule P2 do
+  def run(filename) do
+    maze = P1.parse_file(filename)
+    w = maze |> Enum.count()
+    h = Enum.at(maze, 0) |> Enum.count()
+    Cache.put(:h, h)
+    Cache.put(:w, w)
+
+    top = for x <- 0..(w - 1), do: {{x, -1}, :down}
+    bottom = for x <- 0..(w - 1), do: {{x, h}, :up}
+    left = for y <- 0..(h - 1), do: {{-1, y}, :down}
+    rigth = for y <- 0..(h - 1), do: {{w, y}, :up}
+
+    (top ++ bottom ++ left ++ rigth)
+    |> Enum.map(fn {p0, dir} -> P1.solve_for(maze, p0, dir) end)
+    |> Enum.max()
+    |> IO.inspect(label: "[DDA] max")
+  end
 end
 
 Cache.setup()
-P1.run("sample.txt")
+# P1.run("sample.txt")
 # P1.run("input.txt")
 # P2.run("sample.txt")
-# P2.run("input.txt")
+P2.run("input.txt")
