@@ -8,7 +8,7 @@ defmodule GraphSearch do
   # --------------------------------------------------------------------------------
 
   # return unvisited node which has the minimum distance
-  def min_distance(distances, unvisited) do
+  defp min_distance(distances, unvisited) do
     # unvisited
     # |> Enum.reduce({-1, @max_dist}, fn nd, acc = {_, min_dist} ->
     #   dist = Map.get(distances, nd)
@@ -28,25 +28,6 @@ defmodule GraphSearch do
         {min_nd, min_dist}
       end
     end)
-  end
-
-  # --------------------------------------------------------------------------------
-  # with priority queue
-  # --------------------------------------------------------------------------------
-
-  def dijkstra_pq(graph, source, dest) do
-    # initialize
-    nodes = Map.keys(graph)
-
-    # all distances are set to infinity initally
-    distances = for node <- nodes, into: %{}, do: {node, @max_dist}
-    distances = Map.put(distances, source, 0)
-
-    unvisited = Heap.new(fn {_, x}, {_, y} -> x < y end)
-    unvisited = Heap.push(unvisited, {source, 0})
-
-    distances = dijkstra_pq_inner(graph, unvisited, distances)
-    Map.get(distances, dest)
   end
 
   def dijkstra_dfs(graph, source, dest) do
@@ -96,7 +77,42 @@ defmodule GraphSearch do
     end)
   end
 
-  defp dijkstra_pq_inner(graph, unvisited, distances) do
+  # --------------------------------------------------------------------------------
+  # with priority queue
+  # --------------------------------------------------------------------------------
+
+  def dijkstra_pq(blocks, {s_x, s_y}, {d_x, d_y}) do
+    h = blocks |> Enum.count()
+    w = Enum.at(blocks, 0) |> Enum.count()
+    Cache.put(:h, h)
+    Cache.put(:w, w)
+
+    nodes =
+      for y <- 0..(h - 1) do
+        for x <- 0..(w - 1) do
+          {x, y, {nil, nil, nil}}
+        end
+      end
+      |> Enum.concat()
+
+    source = {s_x, s_y, {nil, nil, nil}}
+
+    # all distances are set to infinity initally
+    distances = for node <- nodes, into: %{}, do: {node, @max_dist}
+    distances = Map.put(distances, source, 0)
+
+    unvisited = Heap.new(fn {_, d1}, {_, d2} -> d1 < d2 end)
+    unvisited = Heap.push(unvisited, {source, 0})
+
+    distances = dijkstra_pq_inner(blocks, unvisited, distances)
+
+    distances
+    |> Map.filter(fn {{x, y, _}, _} -> {x, y} == {d_x, d_y} end)
+    |> Map.values()
+    |> Enum.min()
+  end
+
+  defp dijkstra_pq_inner(blocks, unvisited, distances) do
     if Heap.empty?(unvisited) do
       distances
     else
@@ -104,10 +120,11 @@ defmodule GraphSearch do
       unvisited = Heap.pop(unvisited)
 
       if current_dist > Map.get(distances, current_nd) do
-        dijkstra_pq_inner(graph, unvisited, distances)
+        dijkstra_pq_inner(blocks, unvisited, distances)
       else
         {unvisited, distances} =
-          Map.get(graph, current_nd)
+          P1.full_connections_for_point(blocks, current_nd)
+          # Map.get(blocks, current_nd)
           |> Enum.reduce({unvisited, distances}, fn {neighboor, weight}, {unvisited, distances} ->
             dist_neighboor = current_dist + weight
 
@@ -121,7 +138,7 @@ defmodule GraphSearch do
             end
           end)
 
-        dijkstra_pq_inner(graph, unvisited, distances)
+        dijkstra_pq_inner(blocks, unvisited, distances)
       end
     end
   end
@@ -155,6 +172,7 @@ defmodule P1 do
   def op(:ri), do: :le
   def op(:up), do: :dn
   def op(:dn), do: :up
+  def op(nil), do: :nonnil
 
   def is_valid({d1, d2, d3}) do
     d1 != op(d2) && d2 != op(d3)
@@ -171,7 +189,7 @@ defmodule P1 do
     |> Enum.reject(&is_nil/1)
   end
 
-  def connections_for_point(blocks, {x, y, {d1, d2, d3}}) do
+  def full_connections_for_point(blocks, {x, y, {d1, d2, d3}}) do
     for d4 <- [:le, :ri, :up, :dn] do
       {x1, y1} = P1.mv({x, y}, d4)
       val = P1.at(blocks, {x1, y1})
@@ -187,6 +205,19 @@ defmodule P1 do
     |> Enum.reject(&is_nil/1)
   end
 
+  def connections_for_point(blocks, {x, y}) do
+    for d <- [:le, :ri, :up, :dn] do
+      {x1, y1} = P1.mv({x, y}, d)
+      val = P1.at(blocks, {x1, y1})
+
+      cond do
+        val == :wall -> nil
+        true -> {{x1, y1}, val}
+      end
+    end
+    |> Enum.reject(&is_nil/1)
+  end
+
   def run(filename) do
     blocks = P1.parse_file(filename)
     h = blocks |> Enum.count()
@@ -194,58 +225,11 @@ defmodule P1 do
     Cache.put(:h, h)
     Cache.put(:w, w)
 
-    start = {0, 0}
+    source = {0, 0}
     dest = {w - 1, h - 1}
 
-    # build graph for dijkstra_dfs
-    # dir order: le, ri, up, dn
-    graph =
-      for y <- 0..(h - 1) do
-        for x <- 0..(w - 1) do
-          expand_point({x, y})
-          |> Enum.map(fn p -> {p, connections_for_point(blocks, p)} end)
-        end
-      end
-      |> Enum.concat()
-      |> Enum.concat()
-      |> Enum.into(%{})
-
-    pts = graph |> Map.keys()
-
-    # add 'fake connections' to start and dest
-    fake_start_conns =
-      for pt = {x, y, _} when {x, y} == start <- pts do
-        {pt, 0}
-      end
-
-    dest_pts =
-      for pt = {x, y, _} when {x, y} == dest <- pts do
-        pt
-      end
-
-    graph =
-      graph
-      |> Map.put(start, fake_start_conns)
-      |> Map.put(dest, [])
-
-    conns_to_finnish = [{dest, 0}]
-
-    graph =
-      dest_pts
-      |> Enum.reduce(graph, fn pt, graph ->
-        graph |> Map.update(pt, [], fn conns -> conns ++ conns_to_finnish end)
-      end)
-
-    graph
-    |> Enum.count()
-    |> IO.inspect(label: "graph: nb nodes")
-
-    # GraphSearch.dijkstra_dfs(graph, start, dest)
-    # GraphSearch.dijkstra_dfs(graph, start, dest)
-    # |> IO.inspect(label: "graph: dist start -> dest")
-
-    GraphSearch.dijkstra_pq(graph, start, dest)
-    |> IO.inspect(label: "graph: dist start2 -> dest")
+    GraphSearch.dijkstra_pq(blocks, source, dest)
+    |> IO.inspect(label: "graph: dist start -> dest")
   end
 end
 
@@ -255,10 +239,10 @@ end
 defmodule P do
   def start() do
     Cache.setup()
-    P1.run("sample.txt")
+    # P1.run("sample.txt")
 
     # P1.run("sample.txt")
-    # P1.run("input.txt")
+    P1.run("input.txt")
 
     # P1.run("sample0.txt")
     # P1.run("sample.txt")
