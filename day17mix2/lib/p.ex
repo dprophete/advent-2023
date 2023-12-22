@@ -3,6 +3,10 @@
 defmodule GraphSearch do
   @max_dist 1_000_000_000
 
+  # --------------------------------------------------------------------------------
+  # dfs
+  # --------------------------------------------------------------------------------
+
   # return unvisited node which has the minimum distance
   def min_distance(distances, unvisited) do
     # unvisited
@@ -26,7 +30,11 @@ defmodule GraphSearch do
     end)
   end
 
-  def dijkstra2(graph, source, dest) do
+  # --------------------------------------------------------------------------------
+  # with priority queue
+  # --------------------------------------------------------------------------------
+
+  def dijkstra_pq(graph, source, dest) do
     # initialize
     nodes = Map.keys(graph)
 
@@ -37,43 +45,11 @@ defmodule GraphSearch do
     unvisited = Heap.new(fn {_, x}, {_, y} -> x < y end)
     unvisited = Heap.push(unvisited, {source, 0})
 
-    distances = dijkstra2_inner(graph, unvisited, distances)
+    distances = dijkstra_pq_inner(graph, unvisited, distances)
     Map.get(distances, dest)
   end
 
-  defp dijkstra2_inner(graph, unvisited, distances) do
-    if Heap.empty?(unvisited) do
-      distances
-    else
-      {current_nd, current_dist} = Heap.root(unvisited)
-      unvisited = Heap.pop(unvisited)
-
-      if current_dist > Map.get(distances, current_nd) do
-        dijkstra2_inner(graph, unvisited, distances)
-      else
-        {unvisited, distances} =
-          Map.get(graph, current_nd)
-          |> Enum.reduce({unvisited, distances}, fn {neighboor, weight}, {unvisited, distances} ->
-            dist_neighboor = current_dist + weight
-
-            if dist_neighboor < Map.get(distances, neighboor) do
-              {
-                Heap.push(unvisited, {neighboor, dist_neighboor}),
-                Map.put(distances, neighboor, dist_neighboor)
-              }
-            else
-              {unvisited, distances}
-            end
-          end)
-
-        dijkstra2_inner(graph, unvisited, distances)
-      end
-    end
-  end
-
-  def dijkstra(graph, source, dest) do
-    aa = Heap.new()
-    IO.inspect(aa, label: "[DDA] aa")
+  def dijkstra_dfs(graph, source, dest) do
     # initialize
     nodes = Map.keys(graph)
 
@@ -118,6 +94,36 @@ defmodule GraphSearch do
         {:cont, {distances, unvisited}}
       end
     end)
+  end
+
+  defp dijkstra_pq_inner(graph, unvisited, distances) do
+    if Heap.empty?(unvisited) do
+      distances
+    else
+      {current_nd, current_dist} = Heap.root(unvisited)
+      unvisited = Heap.pop(unvisited)
+
+      if current_dist > Map.get(distances, current_nd) do
+        dijkstra_pq_inner(graph, unvisited, distances)
+      else
+        {unvisited, distances} =
+          Map.get(graph, current_nd)
+          |> Enum.reduce({unvisited, distances}, fn {neighboor, weight}, {unvisited, distances} ->
+            dist_neighboor = current_dist + weight
+
+            if dist_neighboor < Map.get(distances, neighboor) do
+              {
+                Heap.push(unvisited, {neighboor, dist_neighboor}),
+                Map.put(distances, neighboor, dist_neighboor)
+              }
+            else
+              {unvisited, distances}
+            end
+          end)
+
+        dijkstra_pq_inner(graph, unvisited, distances)
+      end
+    end
   end
 end
 
@@ -191,7 +197,7 @@ defmodule P1 do
     start = {0, 0}
     dest = {w - 1, h - 1}
 
-    # build graph for dijkstra
+    # build graph for dijkstra_dfs
     # dir order: le, ri, up, dn
     graph =
       for y <- 0..(h - 1) do
@@ -234,35 +240,12 @@ defmodule P1 do
     |> Enum.count()
     |> IO.inspect(label: "graph: nb nodes")
 
-    # GraphSearch.dijkstra(graph, start, dest)
-    # GraphSearch.dijkstra(graph, start, dest)
+    # GraphSearch.dijkstra_dfs(graph, start, dest)
+    # GraphSearch.dijkstra_dfs(graph, start, dest)
     # |> IO.inspect(label: "graph: dist start -> dest")
 
-    GraphSearch.dijkstra2(graph, start, dest)
+    GraphSearch.dijkstra_pq(graph, start, dest)
     |> IO.inspect(label: "graph: dist start2 -> dest")
-  end
-
-  def run2() do
-    graph =
-      %{
-        U: %{V: 2, W: 5, X: 1},
-        V: %{U: 2, X: 2, W: 3},
-        W: %{V: 3, U: 5, X: 3, Y: 1, Z: 5},
-        X: %{U: 1, V: 2, W: 3, Y: 1},
-        Y: %{X: 1, W: 1, Z: 1},
-        Z: %{W: 5, Y: 1}
-      }
-
-    start = :X
-    dest = :Z
-
-    GraphSearch.dijkstra(graph, start, dest)
-    |> IO.inspect(label: "[DDA] GraphSearch.dijkstra")
-
-    GraphSearch.dijkstra2(graph, start, dest)
-    |> IO.inspect(label: "[DDA] GraphSearch.dijkstra2")
-
-    # |> IO.inspect(label: "graph: dist start2 -> dest")
   end
 end
 
@@ -272,8 +255,7 @@ end
 defmodule P do
   def start() do
     Cache.setup()
-    P1.run("input.txt")
-    # P1.run2()
+    P1.run("sample.txt")
 
     # P1.run("sample.txt")
     # P1.run("input.txt")
