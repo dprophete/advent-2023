@@ -1,67 +1,29 @@
 #!/usr/bin/env elixir
 
-defmodule Utils do
-  # a base transpose function
-  def transpose(rows) do
-    rows
-    |> List.zip()
-    |> Enum.map(&Tuple.to_list/1)
-  end
-end
-
-defmodule Cache do
-  def setup() do
-    :ets.new(:cache, [:named_table])
-  end
-
-  def cache(key, func) do
-    case :ets.lookup(:cache, key) do
-      [{_, val}] ->
-        val
-
-      [] ->
-        val = func.()
-        :ets.insert(:cache, {key, val})
-        val
-    end
-  end
-
-  def put(key, val) do
-    :ets.insert(:cache, {key, val})
-  end
-
-  def get(key) do
-    case :ets.lookup(:cache, key) do
-      [{_, val}] -> val
-      _ -> nil
-    end
-  end
-end
-
 defmodule GraphSearch do
   @max_dist 1_000_000_000
 
   # return unvisited node which has the minimum distance
   def min_distance(distances, unvisited) do
-    unvisited
-    |> Enum.reduce({-1, @max_dist}, fn nd, acc = {_, min_dist} ->
-      dist = Map.get(distances, nd)
+    # unvisited
+    # |> Enum.reduce({-1, @max_dist}, fn nd, acc = {_, min_dist} ->
+    #   dist = Map.get(distances, nd)
 
-      if dist < min_dist do
-        {nd, dist}
-      else
-        acc
-      end
-    end)
-
-    # distances
-    # |> Enum.reduce({-1, @max_dist}, fn {nd, dist}, {min_nd, min_dist} ->
-    #   if MapSet.member?(unvisited, nd) && dist < min_dist do
+    #   if dist < min_dist do
     #     {nd, dist}
     #   else
-    #     {min_nd, min_dist}
+    #     acc
     #   end
     # end)
+
+    distances
+    |> Enum.reduce({-1, @max_dist}, fn {nd, dist}, {min_nd, min_dist} ->
+      if dist < min_dist && MapSet.member?(unvisited, nd) do
+        {nd, dist}
+      else
+        {min_nd, min_dist}
+      end
+    end)
   end
 
   def dijkstra2(graph, source, dest) do
@@ -70,49 +32,48 @@ defmodule GraphSearch do
 
     # all distances are set to infinity initally
     distances = for node <- nodes, into: %{}, do: {node, @max_dist}
-
-    unvisited = MapSet.new(nodes)
-
-    # set source distance to 0
     distances = Map.put(distances, source, 0)
 
-    nodes
-    |> Enum.reduce_while({distances, unvisited}, fn _, {distances, unvisited} ->
-      {min_node, min_dist} = min_distance(distances, unvisited)
+    unvisited = Heap.new(fn {_, x}, {_, y} -> x < y end)
+    unvisited = Heap.push(unvisited, {source, 0})
 
-      if dest == min_node do
-        {:halt, min_dist}
+    distances = dijkstra2_inner(graph, unvisited, distances)
+    Map.get(distances, dest)
+  end
+
+  defp dijkstra2_inner(graph, unvisited, distances) do
+    if Heap.empty?(unvisited) do
+      distances
+    else
+      {current_nd, current_dist} = Heap.root(unvisited)
+      unvisited = Heap.pop(unvisited)
+
+      if current_dist > Map.get(distances, current_nd) do
+        dijkstra2_inner(graph, unvisited, distances)
       else
-        unvisited = MapSet.delete(unvisited, min_node)
+        {unvisited, distances} =
+          Map.get(graph, current_nd)
+          |> Enum.reduce({unvisited, distances}, fn {neighboor, weight}, {unvisited, distances} ->
+            dist_neighboor = current_dist + weight
 
-        if rem(Enum.count(unvisited), 1000) == 0 do
-          IO.inspect(
-            "[DDA] found min #{inspect(min_dist)} for #{inspect(min_node)} (#{Enum.count(unvisited)} to go)"
-          )
-        end
-
-        # update distances to the adjacent nodes
-        dist_min_node = Map.get(distances, min_node)
-
-        distances =
-          Map.get(graph, min_node)
-          |> Enum.filter(fn {nd, _} -> MapSet.member?(unvisited, nd) end)
-          |> Enum.reduce(distances, fn {nd, weight}, distances ->
-            dist_nd = Map.get(distances, nd)
-
-            if dist_nd > dist_min_node + weight do
-              Map.put(distances, nd, dist_min_node + weight)
+            if dist_neighboor < Map.get(distances, neighboor) do
+              {
+                Heap.push(unvisited, {neighboor, dist_neighboor}),
+                Map.put(distances, neighboor, dist_neighboor)
+              }
             else
-              distances
+              {unvisited, distances}
             end
           end)
 
-        {:cont, {distances, unvisited}}
+        dijkstra2_inner(graph, unvisited, distances)
       end
-    end)
+    end
   end
 
   def dijkstra(graph, source, dest) do
+    aa = Heap.new()
+    IO.inspect(aa, label: "[DDA] aa")
     # initialize
     nodes = Map.keys(graph)
 
@@ -142,15 +103,13 @@ defmodule GraphSearch do
         end
 
         # update distances to the adjacent nodes
-        dist_min_node = Map.get(distances, min_node)
-
         distances =
           Map.get(graph, min_node)
           |> Enum.reduce(distances, fn {nd, weight}, distances ->
             dist_nd = Map.get(distances, nd)
 
-            if MapSet.member?(unvisited, nd) && dist_nd > dist_min_node + weight do
-              Map.put(distances, nd, dist_min_node + weight)
+            if dist_nd > min_dist + weight && MapSet.member?(unvisited, nd) do
+              Map.put(distances, nd, min_dist + weight)
             else
               distances
             end
@@ -230,7 +189,7 @@ defmodule P1 do
     Cache.put(:w, w)
 
     start = {0, 0}
-    finish = {w - 1, h - 1}
+    dest = {w - 1, h - 1}
 
     # build graph for dijkstra
     # dir order: le, ri, up, dn
@@ -247,57 +206,83 @@ defmodule P1 do
 
     pts = graph |> Map.keys()
 
-    # add 'fake connections' to start and finish
+    # add 'fake connections' to start and dest
     fake_start_conns =
       for pt = {x, y, _} when {x, y} == start <- pts do
         {pt, 0}
       end
 
-    finish_pts =
-      for pt = {x, y, _} when {x, y} == finish <- pts do
+    dest_pts =
+      for pt = {x, y, _} when {x, y} == dest <- pts do
         pt
       end
 
     graph =
       graph
       |> Map.put(start, fake_start_conns)
-      |> Map.put(finish, [])
+      |> Map.put(dest, [])
 
-    conns_to_finnish = [{finish, 0}]
+    conns_to_finnish = [{dest, 0}]
 
     graph =
-      finish_pts
+      dest_pts
       |> Enum.reduce(graph, fn pt, graph ->
-        graph
-        |> Map.update(pt, [], fn conns -> conns ++ conns_to_finnish end)
+        graph |> Map.update(pt, [], fn conns -> conns ++ conns_to_finnish end)
       end)
-
-    # ([{start, fake_start_conns}, {finish, fake_finish_conns}] ++ conns)
-    # |> Enum.into(%{})
 
     graph
     |> Enum.count()
     |> IO.inspect(label: "graph: nb nodes")
 
-    # GraphSearch.dijkstra(graph, start, finish)
-    GraphSearch.dijkstra2(graph, start, finish)
-    |> IO.inspect(label: "graph: dist start -> finish")
+    # GraphSearch.dijkstra(graph, start, dest)
+    # GraphSearch.dijkstra(graph, start, dest)
+    # |> IO.inspect(label: "graph: dist start -> dest")
+
+    GraphSearch.dijkstra2(graph, start, dest)
+    |> IO.inspect(label: "graph: dist start2 -> dest")
+  end
+
+  def run2() do
+    graph =
+      %{
+        U: %{V: 2, W: 5, X: 1},
+        V: %{U: 2, X: 2, W: 3},
+        W: %{V: 3, U: 5, X: 3, Y: 1, Z: 5},
+        X: %{U: 1, V: 2, W: 3, Y: 1},
+        Y: %{X: 1, W: 1, Z: 1},
+        Z: %{W: 5, Y: 1}
+      }
+
+    start = :X
+    dest = :Z
+
+    GraphSearch.dijkstra(graph, start, dest)
+    |> IO.inspect(label: "[DDA] GraphSearch.dijkstra")
+
+    GraphSearch.dijkstra2(graph, start, dest)
+    |> IO.inspect(label: "[DDA] GraphSearch.dijkstra2")
+
+    # |> IO.inspect(label: "graph: dist start2 -> dest")
   end
 end
 
 defmodule P2 do
 end
 
-Cache.setup()
+defmodule P do
+  def start() do
+    Cache.setup()
+    P1.run("input.txt")
+    # P1.run2()
 
-# P1.run("sample.txt")
-# P1.run("input.txt")
+    # P1.run("sample.txt")
+    # P1.run("input.txt")
 
-# P1.run("sample0.txt")
-P1.run("sample.txt")
-# P1.run("input.txt")
+    # P1.run("sample0.txt")
+    # P1.run("sample.txt")
+    # P1.run("input.txt")
 
-# P2.run("sample.txt")
-# P2.run("input.txt")
-
-# warning: variable "finish" is unused (if the variable is not meant to be used, prefix it with an underscore)
+    # P2.run("sample.txt")
+    # P2.run("input.txt")
+  end
+end

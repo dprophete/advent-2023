@@ -1,43 +1,5 @@
 #!/usr/bin/env elixir
 
-defmodule Utils do
-  # a base transpose function
-  def transpose(rows) do
-    rows
-    |> List.zip()
-    |> Enum.map(&Tuple.to_list/1)
-  end
-end
-
-defmodule Cache do
-  def setup() do
-    :ets.new(:cache, [:named_table])
-  end
-
-  def cache(key, func) do
-    case :ets.lookup(:cache, key) do
-      [{_, val}] ->
-        val
-
-      [] ->
-        val = func.()
-        :ets.insert(:cache, {key, val})
-        val
-    end
-  end
-
-  def put(key, val) do
-    :ets.insert(:cache, {key, val})
-  end
-
-  def get(key) do
-    case :ets.lookup(:cache, key) do
-      [{_, val}] -> val
-      _ -> nil
-    end
-  end
-end
-
 defmodule GraphSearch1 do
   @max_dist 1_000_000_000
 
