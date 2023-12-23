@@ -6,8 +6,7 @@ defmodule P1 do
   # 
   # rule = 
   #  {:always, dest}
-  #  {{:lt, var, nb, dest}
-  #  {{:gt, var, nb, dest}
+  #  {{:op, var, op, nb, dest}
 
   def parse_dest(dest) do
     cond do
@@ -22,12 +21,12 @@ defmodule P1 do
       String.contains?(src, "<") ->
         [var, nb] = Regex.run(~r/(.*)<(.*)/, src, capture: :all_but_first)
         nb = String.to_integer(nb)
-        {:lt, var, nb}
+        {:op, var, &</2, nb}
 
       String.contains?(src, ">") ->
         [var, nb] = Regex.run(~r/(.*)>(.*)/, src, capture: :all_but_first)
         nb = String.to_integer(nb)
-        {:gt, var, nb}
+        {:op, var, &>/2, nb}
     end
   end
 
@@ -74,16 +73,8 @@ defmodule P1 do
   def goto_dest(_workflows, _part, :reject), do: :reject
   def goto_dest(workflows, part, {:goto, wf_name}), do: exec_workflow(workflows, part, wf_name)
 
-  def execute_rule(workflows, part, [{{:lt, var, nb}, dest} | rules]) do
-    if Map.get(part, var) < nb do
-      goto_dest(workflows, part, dest)
-    else
-      execute_rule(workflows, part, rules)
-    end
-  end
-
-  def execute_rule(workflows, part, [{{:gt, var, nb}, dest} | rules]) do
-    if Map.get(part, var) > nb do
+  def execute_rule(workflows, part, [{{:op, var, op, nb}, dest} | rules]) do
+    if op.(Map.get(part, var), nb) do
       goto_dest(workflows, part, dest)
     else
       execute_rule(workflows, part, rules)
@@ -114,14 +105,74 @@ defmodule P1 do
 end
 
 defmodule P2 do
+  def size_for_var(var, ranges) do
+    {min_, max_} = Map.get(ranges, var)
+    max_ - min_ + 1
+  end
+
+  def goto_dest(_workflows, ranges, :accept) do
+    ranges |> Map.keys() |> Enum.map(&size_for_var(&1, ranges)) |> Enum.product()
+  end
+
+  def goto_dest(_workflows, _ranges, :reject), do: 0
+
+  def goto_dest(workflows, ranges, {:goto, wf_name}),
+    do: exec_workflow(workflows, ranges, wf_name)
+
+  # x < nb, x > nb
+  def execute_rule(workflows, ranges, [{{:op, var, op, nb}, dest} | rules]) do
+    {min_, max_} = Map.get(ranges, var)
+
+    # x > 9
+    # [10, 20]
+    {no_matches, full_matches, {pass, fail}} =
+      cond do
+        op == (&</2) -> {nb <= min_, nb > max_, {{min_, nb - 1}, {nb, max_}}}
+        op == (&>/2) -> {nb >= max_, nb < min_, {{nb + 1, max_}, {min_, nb}}}
+      end
+
+    cond do
+      no_matches ->
+        # no matches
+        execute_rule(workflows, ranges, rules)
+
+      full_matches ->
+        # full matches
+        goto_dest(workflows, ranges, dest)
+
+      true ->
+        # partial matches, we need to split
+        goto_dest(workflows, Map.put(ranges, var, pass), dest) +
+          execute_rule(workflows, Map.put(ranges, var, fail), rules)
+    end
+  end
+
+  def execute_rule(workflows, ranges, [{:always, dest} | _rules]) do
+    goto_dest(workflows, ranges, dest)
+  end
+
+  def exec_workflow(workflows, ranges, wf_name) do
+    wf = Map.get(workflows, wf_name)
+    execute_rule(workflows, ranges, wf)
+  end
+
+  def run(filename) do
+    {workflows, _parts} = P1.parse_file(filename)
+
+    ranges =
+      for letter <- ["x", "m", "a", "s"], into: %{}, do: {letter, {1, 4000}}
+
+    exec_workflow(workflows, ranges, "in")
+    |> IO.inspect()
+  end
 end
 
 defmodule P do
   def start() do
     Cache.setup()
     # P1.run("sample.txt")
-    P1.run("input.txt")
+    # P1.run("input.txt")
     # P2.run("sample.txt")
-    # P2.run("input.txt")
+    P2.run("input.txt")
   end
 end
