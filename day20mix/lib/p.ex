@@ -67,9 +67,6 @@ defmodule P1 do
   # - running
   # --------------------------------------------------------------------------------
 
-  def flip_pulse(:low), do: :high
-  def flip_pulse(:high), do: :low
-
   # create signals for all dests
   def signals_for_dests(input, pulse, dests) do
     Enum.map(dests, fn dest -> {input, pulse, dest} end)
@@ -103,7 +100,7 @@ defmodule P1 do
 
         {:conj, _, dests} ->
           dest_state =
-            Map.update(dest_state, input, :low, &flip_pulse/1)
+            Map.put(dest_state, input, pulse)
 
           {dest_state,
            case Enum.all?(dest_state, fn {_, value} -> value == :high end) do
