@@ -67,6 +67,7 @@ defmodule P1 do
       {:flip, dests} -> dests
       {:conj, _, dests} -> dests
       {:broadcaster, dests} -> dests
+      nil -> []
     end
   end
 
@@ -94,7 +95,7 @@ defmodule P1 do
     {new_dest_state, new_signals_to_send} =
       case dest_mod do
         nil ->
-          {pulse, []}
+          {dest_state, []}
 
         {:broadcaster, dests} ->
           {dest_state, signals_for_dests(dest, pulse, dests)}
@@ -167,24 +168,70 @@ defmodule P1 do
 end
 
 defmodule P2 do
-  def press_until_rx_low(machine, states, count) do
-    if rem(count, 1_000_000) == 0 do
-      IO.inspect(Map.get(states, "rx"), label: "[DDA] count #{count} -> rx state")
-    end
+  # we are done 
+  def send_signals(_machine, states, count, data, []), do: {states, count, data}
 
-    if Map.get(states, "rx") == :low do
-      count
+  # send signals
+  # return: {new_states, nb_lows, nb_highs}
+  def send_signals(machine, states, count, data, [signal | signals]) do
+    {input, pulse, dest} = signal
+    dest_mod = Map.get(machine, dest)
+
+    data =
+      if "rx" in P1.get_dests(dest_mod) and pulse == :high do
+        Map.update(data, input, [], fn counts_for_data -> [count | counts_for_data] end)
+      else
+        data
+      end
+
+    {new_states, new_signals} = P1.send_signal(machine, states, signal)
+
+    send_signals(machine, new_states, count, data, signals ++ new_signals)
+  end
+
+  def press_until_rx_low(machine, states, count, data) do
+    {states, count, data} =
+      send_signals(machine, states, count, data, [{"button", :low, "broadcaster"}])
+
+    enough_data =
+      data |> Enum.all?(fn {_, counts} -> Enum.count(counts) > 5 end)
+
+    if enough_data do
+      data
     else
-      {states, _, _} = P1.send_signals(machine, states, 0, 0, [{"button", :low, "broadcaster"}])
-      press_until_rx_low(machine, states, count + 1)
+      press_until_rx_low(machine, states, count + 1, data)
     end
   end
 
   def run(filename) do
     {machine, start_states} = P1.parse_file(filename)
 
-    press_until_rx_low(machine, start_states, 0)
-    |> IO.inspect(label: "nb presses to get low rx")
+    {_, type} = machine |> Enum.find(fn {_, type} -> "rx" in P1.get_dests(type) end)
+    {:conj, inputs_to_check, _} = type
+    data = for input <- inputs_to_check, into: %{}, do: {input, []}
+
+    data = press_until_rx_low(machine, start_states, 0, data)
+
+    cycles =
+      data
+      |> Map.values()
+      |> Enum.map(fn counts ->
+        [l1, l2, l3, l4 | _] = counts
+
+        case l1 - l2 == l2 - l3 && l2 - l3 == l3 - l4 do
+          true -> l1 - l2
+          _ -> nil
+        end
+      end)
+
+    if Enum.any?(cycles, fn x -> x == nil end) do
+      IO.puts("error, can't detect cycles")
+    else
+      IO.inspect(cycles, label: "[DDA] cycles")
+
+      lcm = Enum.reduce(cycles, &Utils.lcm/2)
+      IO.inspect(lcm, label: "[DDA] got cycles, lcm")
+    end
   end
 end
 

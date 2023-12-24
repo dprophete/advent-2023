@@ -42,10 +42,6 @@ defmodule P1 do
 end
 
 defmodule P2 do
-  def lcm(a, b) do
-    div(a * b, Integer.gcd(a, b))
-  end
-
   def until_done({node, nb_loops}, insts, nodes) do
     node = P1.follow_instructions(node, insts, nodes)
 
