@@ -100,9 +100,9 @@ defmodule P1 do
     {states, new_signals}
   end
 
-  def send_signals(_machine, states, nb_signals, []), do: {states, nb_signals}
+  def send_signals(_machine, states, nb_lows, nb_highs, []), do: {states, nb_lows, nb_highs}
 
-  def send_signals(machine, states, {nb_lows, nb_highs}, [signal | signals]) do
+  def send_signals(machine, states, nb_lows, nb_highs, [signal | signals]) do
     # IO.puts("")
     {new_states, new_signals} = send_signal(machine, states, signal)
     # IO.inspect("[DDA] new states #{inspect(new_states)}")
@@ -110,17 +110,17 @@ defmodule P1 do
 
     {{low_high, _}, _} = signal
 
-    nb_signals =
+    {nb_lows, nb_highs} =
       case low_high do
         :low -> {nb_lows + 1, nb_highs}
         :high -> {nb_lows, nb_highs + 1}
       end
 
-    send_signals(machine, new_states, nb_signals, signals ++ new_signals)
+    send_signals(machine, new_states, nb_lows, nb_highs, signals ++ new_signals)
   end
 
   def push_button(machine, states) do
-    send_signals(machine, states, {0, 0}, [{{:low, "button"}, "broadcaster"}])
+    send_signals(machine, states, 0, 0, [{{:low, "button"}, "broadcaster"}])
   end
 
   def run(filename) do
@@ -142,8 +142,7 @@ defmodule P1 do
     {_, nb_lows, nb_highs} =
       for _i <- 1..1000, reduce: {start_states, 0, 0} do
         {states, nb_lows, nb_highs} ->
-          {new_states, {new_nb_lows, new_nb_highs}} = push_button(machine, states)
-
+          {new_states, new_nb_lows, new_nb_highs} = push_button(machine, states)
           {new_states, new_nb_lows + nb_lows, new_nb_highs + nb_highs}
       end
 
