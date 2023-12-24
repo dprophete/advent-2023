@@ -172,14 +172,14 @@ end
 defmodule P do
   def start() do
     Cache.setup()
-    P1.run("sample.txt")
+    # P1.run("sample.txt")
     # P1.run("sample2.txt")
-    # P1.run("input.txt")
+    P1.run("input.txt")
     # P2.run("sample.txt")
     # P2.run("input.txt")
   end
 
-  # sample: 32000000
-  # sample2: 11687500
-  # input: 831459892 -> it says it is too low
+  # sample: 32000000 -> good
+  # sample2: 11687500 -> good
+  # input: 831459892 ->  not good
 end
