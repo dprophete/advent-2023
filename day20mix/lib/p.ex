@@ -12,7 +12,7 @@
 #     :conj -> map: input -> :low | :high
 #
 #   signals:
-#     {int, :low | :high, dest}
+#     {input, :low | :high, dest}
 defmodule P1 do
   def get_dest(type) do
     case type do
@@ -135,7 +135,8 @@ defmodule P1 do
          end}
       end
 
-    IO.inspect(machine, label: "[DDA] machine")
+    IO.puts("\n--- machine for #{filename} ---")
+    machine |> Enum.each(fn {name, type} -> IO.inspect({name, type}) end)
     # IO.inspect(start_states, label: "[DDA] start_states")
 
     {_, nb_lows, nb_highs} =
@@ -156,8 +157,8 @@ end
 defmodule P do
   def start() do
     Cache.setup()
-    # P1.run("sample.txt")
-    # P1.run("sample2.txt")
+    P1.run("sample.txt")
+    P1.run("sample2.txt")
     P1.run("input.txt")
     # P2.run("sample.txt")
     # P2.run("input.txt")
