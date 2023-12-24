@@ -12,7 +12,7 @@
 #     :conj -> map: input -> :low | :high
 #
 #   signals:
-#     {:low, input} | {:high, input}
+#     {int, :low | :high, dest}
 defmodule P1 do
   def get_dest(type) do
     case type do
@@ -52,13 +52,12 @@ defmodule P1 do
     end
   end
 
-  def signals_for_dests(dests, pulse) do
-    Enum.map(dests, fn dest -> {pulse, dest} end)
+  def signals_for_dests(input, low_high, dests) do
+    Enum.map(dests, fn dest -> {input, low_high, dest} end)
   end
 
-  def send_signal(machine, states, {pulse, dest_mod_name}) do
+  def send_signal(machine, states, {input, low_high, dest_mod_name}) do
     # IO.inspect("[DDA] processing signal to #{dest_mod_name}: #{inspect(signal)}")
-    {low_high, input} = pulse
     dest_mod = Map.get(machine, dest_mod_name)
     dest_state = Map.get(states, dest_mod_name)
 
@@ -68,7 +67,7 @@ defmodule P1 do
           {dest_state, []}
 
         {:broadcaster, dests} ->
-          {dest_state, signals_for_dests(dests, {low_high, dest_mod_name})}
+          {dest_state, signals_for_dests(dest_mod_name, low_high, dests)}
 
         {:ff, dests} ->
           case low_high do
@@ -77,8 +76,8 @@ defmodule P1 do
 
             :low ->
               case dest_state do
-                :on -> {:off, signals_for_dests(dests, {:low, dest_mod_name})}
-                :off -> {:on, signals_for_dests(dests, {:high, dest_mod_name})}
+                :on -> {:off, signals_for_dests(dest_mod_name, :low, dests)}
+                :off -> {:on, signals_for_dests(dest_mod_name, :high, dests)}
               end
           end
 
@@ -91,8 +90,8 @@ defmodule P1 do
 
           {dest_state,
            case Enum.any?(dest_state, fn {_, value} -> value == :low end) do
-             true -> signals_for_dests(dests, {:high, dest_mod_name})
-             false -> signals_for_dests(dests, {:low, dest_mod_name})
+             true -> signals_for_dests(dest_mod_name, :high, dests)
+             false -> signals_for_dests(dest_mod_name, :low, dests)
            end}
       end
 
@@ -108,7 +107,7 @@ defmodule P1 do
     # IO.inspect("[DDA] new states #{inspect(new_states)}")
     # IO.inspect("[DDA] need to send more signals #{inspect(new_signals)}")
 
-    {{low_high, _}, _} = signal
+    {_, low_high, _} = signal
 
     {nb_lows, nb_highs} =
       case low_high do
@@ -120,7 +119,7 @@ defmodule P1 do
   end
 
   def push_button(machine, states) do
-    send_signals(machine, states, 0, 0, [{{:low, "button"}, "broadcaster"}])
+    send_signals(machine, states, 0, 0, [{"button", :low, "broadcaster"}])
   end
 
   def run(filename) do
@@ -164,4 +163,6 @@ defmodule P do
     # P2.run("sample.txt")
     # P2.run("input.txt")
   end
+
+  # 831459892 -> it says it is too low
 end
