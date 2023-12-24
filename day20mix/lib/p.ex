@@ -3,12 +3,12 @@
 # DSL:
 #   modules:
 #     {:broadcaster, dests} -> dests = array of names
-#     {:ff, dests} -> dests = array of names
+#     {:flip, dests} -> dests = array of names
 #     {:conj, inputs, dests} -> inputs, dests = array of names
 #
 #   states:
 #     :broadcaster -> :nada
-#     :ff -> :on | :off
+#     :flip -> :on | :off
 #     :conj -> map: input -> :low | :high
 #
 #   signals:
@@ -16,7 +16,7 @@
 defmodule P1 do
   def get_dest(type) do
     case type do
-      {:ff, dests} -> dests
+      {:flip, dests} -> dests
       {:conj, _, dests} -> dests
       {:broadcaster, dests} -> dests
     end
@@ -37,7 +37,7 @@ defmodule P1 do
         potential_name = String.slice(mod, 1, String.length(mod))
 
         cond do
-          String.first(mod) == "%" -> {potential_name, {:ff, dests}}
+          String.first(mod) == "%" -> {potential_name, {:flip, dests}}
           String.first(mod) == "&" -> {potential_name, {:conj, [], dests}}
           mod == "broadcaster" -> {mod, {:broadcaster, dests}}
         end
@@ -69,7 +69,7 @@ defmodule P1 do
         {:broadcaster, dests} ->
           {dest_state, signals_for_dests(dest_mod_name, low_high, dests)}
 
-        {:ff, dests} ->
+        {:flip, dests} ->
           case low_high do
             :high ->
               {dest_state, []}
@@ -129,14 +129,14 @@ defmodule P1 do
       for {name, type} <- machine, into: %{} do
         {name,
          case type do
-           {:ff, _} -> :off
+           {:flip, _} -> :off
            {:conj, inputs, _} -> for input <- inputs, into: %{}, do: {input, :low}
            {:broadcaster, _} -> :nada
          end}
       end
 
     IO.inspect(machine, label: "[DDA] machine")
-    IO.inspect(start_states, label: "[DDA] start_states")
+    # IO.inspect(start_states, label: "[DDA] start_states")
 
     {_, nb_lows, nb_highs} =
       for _i <- 1..1000, reduce: {start_states, 0, 0} do
@@ -164,5 +164,7 @@ defmodule P do
     # P2.run("input.txt")
   end
 
-  # 831459892 -> it says it is too low
+  # sample: 32000000
+  # sample2: 11687500
+  # input: 831459892 -> it says it is too low
 end
