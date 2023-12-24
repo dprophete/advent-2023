@@ -94,7 +94,7 @@ defmodule P1 do
     {new_dest_state, new_signals_to_send} =
       case dest_mod do
         nil ->
-          {dest_state, []}
+          {pulse, []}
 
         {:broadcaster, dests} ->
           {dest_state, signals_for_dests(dest, pulse, dests)}
@@ -167,6 +167,25 @@ defmodule P1 do
 end
 
 defmodule P2 do
+  def press_until_rx_low(machine, states, count) do
+    if rem(count, 1_000_000) == 0 do
+      IO.inspect(Map.get(states, "rx"), label: "[DDA] count #{count} -> rx state")
+    end
+
+    if Map.get(states, "rx") == :low do
+      count
+    else
+      {states, _, _} = P1.send_signals(machine, states, 0, 0, [{"button", :low, "broadcaster"}])
+      press_until_rx_low(machine, states, count + 1)
+    end
+  end
+
+  def run(filename) do
+    {machine, start_states} = P1.parse_file(filename)
+
+    press_until_rx_low(machine, start_states, 0)
+    |> IO.inspect(label: "nb presses to get low rx")
+  end
 end
 
 defmodule P do
@@ -174,9 +193,9 @@ defmodule P do
     Cache.setup()
     # P1.run("sample.txt")
     # P1.run("sample2.txt")
-    P1.run("input.txt")
+    # P1.run("input.txt")
     # P2.run("sample.txt")
-    # P2.run("input.txt")
+    P2.run("input.txt")
   end
 
   # sample: 32000000 -> good
