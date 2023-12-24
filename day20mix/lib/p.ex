@@ -49,7 +49,7 @@ defmodule P1 do
     end
   end
 
-  def get_dest(mod_type) do
+  def get_dests(mod_type) do
     case mod_type do
       {:flip, dests} -> dests
       {:conj, _, dests} -> dests
@@ -59,7 +59,7 @@ defmodule P1 do
 
   def get_conj_inputs(name, machine) do
     machine
-    |> Enum.filter(fn {_, type} -> name in get_dest(type) end)
+    |> Enum.filter(fn {_, type} -> name in get_dests(type) end)
     |> Enum.map(fn {name, _} -> name end)
   end
 
