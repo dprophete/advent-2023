@@ -1,0 +1,7 @@
+%{
+  "dialyxir": {:hex, :dialyxir, "1.4.2", "764a6e8e7a354f0ba95d58418178d486065ead1f69ad89782817c296d0d746a5", [:mix], [{:erlex, ">= 0.2.6", [hex: :erlex, repo: "hexpm", optional: false]}], "hexpm", "516603d8067b2fd585319e4b13d3674ad4f314a5902ba8130cd97dc902ce6bbd"},
+  "erlex": {:hex, :erlex, "0.2.6", "c7987d15e899c7a2f34f5420d2a2ea0d659682c06ac607572df55a43753aa12e", [:mix], [], "hexpm", "2ed2e25711feb44d52b17d2780eabf998452f6efda104877a3881c2f8c0c0c75"},
+  "heap": {:hex, :heap, "3.0.0", "c6dbcd6e9a0b021432176e89cfd829dd065bd6c115981fdcd981a4251fff5fde", [:mix], [], "hexpm", "373eaca5787e2a2b009c42338e70414f590ceabcf96cfc786627ed762ad4dfc6"},
+  "pqueue": {:hex, :pqueue, "2.0.7", "de663276840debd8385e418317f7239f010f82b4d1348daf93d651ac48c750d6", [:rebar3], [], "hexpm", "8b0204bb202335890e4e7f9b99a8ec0b84ddb8513ee298eb180ee9b3bcb4c859"},
+  "priority_queue": {:hex, :priority_queue, "1.0.0", "5ff5f83a764b635e71f0e41bf78b9763bb233bbac8f5733b4b09b6730bddf866", [:mix], [], "hexpm", "ba3dc420a5898d863803455c05ad870c6b6f3adb12b50ebea6cd6aeed1b358b7"},
+}
