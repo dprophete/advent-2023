@@ -22,7 +22,7 @@ defmodule P1 do
     end
   end
 
-  def get_inputs(name, machine) do
+  def get_conj_inputs(name, machine) do
     machine
     |> Enum.filter(fn {_, type} -> name in get_dest(type) end)
     |> Enum.map(fn {name, _} -> name end)
@@ -46,7 +46,7 @@ defmodule P1 do
     # now get the inputs for the conjonctions
     for {name, type} <- machine, into: %{} do
       case type do
-        {:conj, [], dests} -> {name, {:conj, get_inputs(name, machine), dests}}
+        {:conj, [], dests} -> {name, {:conj, get_conj_inputs(name, machine), dests}}
         _ -> {name, type}
       end
     end
@@ -56,10 +56,10 @@ defmodule P1 do
     Enum.map(dests, fn dest -> {input, pulse, dest} end)
   end
 
-  def send_signal(machine, states, {input, pulse, dest_mod_name}) do
-    # IO.inspect("[DDA] processing signal to #{dest_mod_name}: #{inspect(signal)}")
-    dest_mod = Map.get(machine, dest_mod_name)
-    dest_state = Map.get(states, dest_mod_name)
+  def send_signal(machine, states, {input, pulse, dest}) do
+    # IO.inspect("[DDA] processing signal to #{dest}: #{inspect(signal)}")
+    dest_mod = Map.get(machine, dest)
+    dest_state = Map.get(states, dest)
 
     {new_dest_state, new_signals} =
       case dest_mod do
@@ -67,7 +67,7 @@ defmodule P1 do
           {dest_state, []}
 
         {:broadcaster, dests} ->
-          {dest_state, signals_for_dests(dest_mod_name, pulse, dests)}
+          {dest_state, signals_for_dests(dest, pulse, dests)}
 
         {:flip, dests} ->
           case pulse do
@@ -76,8 +76,8 @@ defmodule P1 do
 
             :low ->
               case dest_state do
-                :on -> {:off, signals_for_dests(dest_mod_name, :low, dests)}
-                :off -> {:on, signals_for_dests(dest_mod_name, :high, dests)}
+                :on -> {:off, signals_for_dests(dest, :low, dests)}
+                :off -> {:on, signals_for_dests(dest, :high, dests)}
               end
           end
 
@@ -90,12 +90,12 @@ defmodule P1 do
 
           {dest_state,
            case Enum.all?(dest_state, fn {_, value} -> value == :high end) do
-             true -> signals_for_dests(dest_mod_name, :low, dests)
-             false -> signals_for_dests(dest_mod_name, :high, dests)
+             true -> signals_for_dests(dest, :low, dests)
+             false -> signals_for_dests(dest, :high, dests)
            end}
       end
 
-    new_states = Map.put(states, dest_mod_name, new_dest_state)
+    new_states = Map.put(states, dest, new_dest_state)
     {new_states, new_signals}
   end
 
@@ -118,10 +118,6 @@ defmodule P1 do
     send_signals(machine, new_states, nb_lows, nb_highs, signals ++ new_signals)
   end
 
-  def push_button(machine, states, nb_lows, nb_highs) do
-    send_signals(machine, states, nb_lows, nb_highs, [{"button", :low, "broadcaster"}])
-  end
-
   def run(filename) do
     machine = parse_file(filename)
 
@@ -142,7 +138,7 @@ defmodule P1 do
     {_, nb_lows, nb_highs} =
       for _i <- 1..1000, reduce: {start_states, 0, 0} do
         {states, nb_lows, nb_highs} ->
-          push_button(machine, states, nb_lows, nb_highs)
+          send_signals(machine, states, nb_lows, nb_highs, [{"button", :low, "broadcaster"}])
       end
 
     IO.inspect(nb_lows, label: "[DDA] nb_lows")
