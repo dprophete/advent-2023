@@ -14,7 +14,7 @@
 #   signals:
 #     {input, pulse, dest}
 #
-#   pulso:
+#   pulse:
 #     :low | :high
 #
 #  machine: map: mod name -> mod type
