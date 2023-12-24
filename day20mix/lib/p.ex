@@ -20,19 +20,9 @@
 #  machine: map: mod name -> mod type
 #  states: map: mod name -> mod state
 defmodule P1 do
-  def get_dest(type) do
-    case type do
-      {:flip, dests} -> dests
-      {:conj, _, dests} -> dests
-      {:broadcaster, dests} -> dests
-    end
-  end
-
-  def get_conj_inputs(name, machine) do
-    machine
-    |> Enum.filter(fn {_, type} -> name in get_dest(type) end)
-    |> Enum.map(fn {name, _} -> name end)
-  end
+  # --------------------------------------------------------------------------------
+  # - parsing
+  # --------------------------------------------------------------------------------
 
   def parse_file(filename) do
     # first pass, get name and dests
@@ -58,10 +48,31 @@ defmodule P1 do
     end
   end
 
+  def get_dest(mod_type) do
+    case mod_type do
+      {:flip, dests} -> dests
+      {:conj, _, dests} -> dests
+      {:broadcaster, dests} -> dests
+    end
+  end
+
+  def get_conj_inputs(name, machine) do
+    machine
+    |> Enum.filter(fn {_, type} -> name in get_dest(type) end)
+    |> Enum.map(fn {name, _} -> name end)
+  end
+
+  # --------------------------------------------------------------------------------
+  # - running
+  # --------------------------------------------------------------------------------
+
+  # create signals for all dests
   def signals_for_dests(input, pulse, dests) do
     Enum.map(dests, fn dest -> {input, pulse, dest} end)
   end
 
+  # send signal
+  # return: {new_states, new_signals}
   def send_signal(machine, states, {input, pulse, dest}) do
     dest_mod = Map.get(machine, dest)
     dest_state = Map.get(states, dest)
@@ -106,6 +117,8 @@ defmodule P1 do
 
   def send_signals(_machine, states, nb_lows, nb_highs, []), do: {states, nb_lows, nb_highs}
 
+  # send signals
+  # return: {new_states, nb_lows, nb_highs}
   def send_signals(machine, states, nb_lows, nb_highs, [signal | signals]) do
     {new_states, new_signals} = send_signal(machine, states, signal)
 
@@ -134,8 +147,12 @@ defmodule P1 do
       end
 
     IO.puts("\n--- machine for #{filename} ---")
-    machine |> Enum.each(fn {name, type} -> IO.inspect({name, type}) end)
-    # IO.inspect(start_states, label: "[DDA] start_states")
+    machine |> Enum.each(&IO.inspect/1)
+
+    IO.puts("\n--- start states ---")
+    start_states |> Enum.each(&IO.inspect/1)
+
+    IO.puts("\n--- results ---")
 
     {_, nb_lows, nb_highs} =
       for _i <- 1..1000, reduce: {start_states, 0, 0} do
@@ -143,9 +160,7 @@ defmodule P1 do
           send_signals(machine, states, nb_lows, nb_highs, [{"button", :low, "broadcaster"}])
       end
 
-    IO.inspect(nb_lows, label: "[DDA] nb_lows")
-    IO.inspect(nb_highs, label: "[DDA] nb_highs")
-    IO.inspect(nb_lows * nb_highs, label: "[DDA] nb_lows * nb_highs")
+    IO.puts("nb_lows #{nb_lows}, nb_highs #{nb_lows} -> product #{nb_lows * nb_highs}")
   end
 end
 
@@ -156,8 +171,8 @@ defmodule P do
   def start() do
     Cache.setup()
     P1.run("sample.txt")
-    P1.run("sample2.txt")
-    P1.run("input.txt")
+    # P1.run("sample2.txt")
+    # P1.run("input.txt")
     # P2.run("sample.txt")
     # P2.run("input.txt")
   end
