@@ -52,11 +52,11 @@ defmodule P1 do
     end
   end
 
-  def signals_for_dests(input, low_high, dests) do
-    Enum.map(dests, fn dest -> {input, low_high, dest} end)
+  def signals_for_dests(input, pulse, dests) do
+    Enum.map(dests, fn dest -> {input, pulse, dest} end)
   end
 
-  def send_signal(machine, states, {input, low_high, dest_mod_name}) do
+  def send_signal(machine, states, {input, pulse, dest_mod_name}) do
     # IO.inspect("[DDA] processing signal to #{dest_mod_name}: #{inspect(signal)}")
     dest_mod = Map.get(machine, dest_mod_name)
     dest_state = Map.get(states, dest_mod_name)
@@ -67,10 +67,10 @@ defmodule P1 do
           {dest_state, []}
 
         {:broadcaster, dests} ->
-          {dest_state, signals_for_dests(dest_mod_name, low_high, dests)}
+          {dest_state, signals_for_dests(dest_mod_name, pulse, dests)}
 
         {:flip, dests} ->
-          case low_high do
+          case pulse do
             :high ->
               {dest_state, []}
 
@@ -89,14 +89,14 @@ defmodule P1 do
             end
 
           {dest_state,
-           case Enum.any?(dest_state, fn {_, value} -> value == :low end) do
-             true -> signals_for_dests(dest_mod_name, :high, dests)
-             false -> signals_for_dests(dest_mod_name, :low, dests)
+           case Enum.all?(dest_state, fn {_, value} -> value == :high end) do
+             true -> signals_for_dests(dest_mod_name, :low, dests)
+             false -> signals_for_dests(dest_mod_name, :high, dests)
            end}
       end
 
-    states = Map.put(states, dest_mod_name, new_dest_state)
-    {states, new_signals}
+    new_states = Map.put(states, dest_mod_name, new_dest_state)
+    {new_states, new_signals}
   end
 
   def send_signals(_machine, states, nb_lows, nb_highs, []), do: {states, nb_lows, nb_highs}
@@ -107,10 +107,10 @@ defmodule P1 do
     # IO.inspect("[DDA] new states #{inspect(new_states)}")
     # IO.inspect("[DDA] need to send more signals #{inspect(new_signals)}")
 
-    {_, low_high, _} = signal
+    {_, pulse, _} = signal
 
     {nb_lows, nb_highs} =
-      case low_high do
+      case pulse do
         :low -> {nb_lows + 1, nb_highs}
         :high -> {nb_lows, nb_highs + 1}
       end
@@ -118,8 +118,8 @@ defmodule P1 do
     send_signals(machine, new_states, nb_lows, nb_highs, signals ++ new_signals)
   end
 
-  def push_button(machine, states) do
-    send_signals(machine, states, 0, 0, [{"button", :low, "broadcaster"}])
+  def push_button(machine, states, nb_lows, nb_highs) do
+    send_signals(machine, states, nb_lows, nb_highs, [{"button", :low, "broadcaster"}])
   end
 
   def run(filename) do
@@ -141,8 +141,7 @@ defmodule P1 do
     {_, nb_lows, nb_highs} =
       for _i <- 1..1000, reduce: {start_states, 0, 0} do
         {states, nb_lows, nb_highs} ->
-          {new_states, new_nb_lows, new_nb_highs} = push_button(machine, states)
-          {new_states, new_nb_lows + nb_lows, new_nb_highs + nb_highs}
+          push_button(machine, states, nb_lows, nb_highs)
       end
 
     IO.inspect(nb_lows, label: "[DDA] nb_lows")
