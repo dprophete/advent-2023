@@ -41,12 +41,25 @@ defmodule P1 do
       end
 
     # now get the inputs for the conjonctions
-    for {name, type} <- machine, into: %{} do
-      case type do
-        {:conj, [], dests} -> {name, {:conj, get_conj_inputs(name, machine), dests}}
-        _ -> {name, type}
+    machine =
+      for {name, type} <- machine, into: %{} do
+        case type do
+          {:conj, [], dests} -> {name, {:conj, get_conj_inputs(name, machine), dests}}
+          _ -> {name, type}
+        end
       end
-    end
+
+    start_states =
+      for {name, type} <- machine, into: %{} do
+        {name,
+         case type do
+           {:flip, _} -> :off
+           {:conj, inputs, _} -> for input <- inputs, into: %{}, do: {input, :low}
+           {:broadcaster, _} -> :nada
+         end}
+      end
+
+    {machine, start_states}
   end
 
   def get_dests(mod_type) do
@@ -133,17 +146,7 @@ defmodule P1 do
   end
 
   def run(filename) do
-    machine = parse_file(filename)
-
-    start_states =
-      for {name, type} <- machine, into: %{} do
-        {name,
-         case type do
-           {:flip, _} -> :off
-           {:conj, inputs, _} -> for input <- inputs, into: %{}, do: {input, :low}
-           {:broadcaster, _} -> :nada
-         end}
-      end
+    {machine, start_states} = parse_file(filename)
 
     IO.puts("\n--- machine for #{filename} ---")
     machine |> Enum.each(&IO.inspect/1)
