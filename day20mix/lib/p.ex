@@ -116,6 +116,7 @@ defmodule P1 do
     {new_states, new_signals_to_send}
   end
 
+  # we are done 
   def send_signals(_machine, states, nb_lows, nb_highs, []), do: {states, nb_lows, nb_highs}
 
   # send signals
