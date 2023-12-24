@@ -1,18 +1,24 @@
 #!/usr/bin/env elixir
 
 # DSL:
-#   modules:
+#   module types:
 #     {:broadcaster, dests} -> dests = array of names
 #     {:flip, dests} -> dests = array of names
 #     {:conj, inputs, dests} -> inputs, dests = array of names
 #
-#   states:
+#   state for modules:
 #     :broadcaster -> :nada
 #     :flip -> :on | :off
 #     :conj -> map: input -> :low | :high
 #
 #   signals:
-#     {input, :low | :high, dest}
+#     {input, pulse, dest}
+#
+#   pulso:
+#     :low | :high
+#
+#  machine: map: mod name -> mod type
+#  states: map: mod name -> mod state
 defmodule P1 do
   def get_dest(type) do
     case type do
@@ -57,7 +63,6 @@ defmodule P1 do
   end
 
   def send_signal(machine, states, {input, pulse, dest}) do
-    # IO.inspect("[DDA] processing signal to #{dest}: #{inspect(signal)}")
     dest_mod = Map.get(machine, dest)
     dest_state = Map.get(states, dest)
 
@@ -102,10 +107,7 @@ defmodule P1 do
   def send_signals(_machine, states, nb_lows, nb_highs, []), do: {states, nb_lows, nb_highs}
 
   def send_signals(machine, states, nb_lows, nb_highs, [signal | signals]) do
-    # IO.puts("")
     {new_states, new_signals} = send_signal(machine, states, signal)
-    # IO.inspect("[DDA] new states #{inspect(new_states)}")
-    # IO.inspect("[DDA] need to send more signals #{inspect(new_signals)}")
 
     {_, pulse, _} = signal
 
