@@ -170,12 +170,15 @@ defmodule P1 do
     end
   end
 
-  def can_be_desintegrated(bricks, idx) do
+  def falling_if_desintegrated(bricks, idx) do
     # let's remove the brick and see if anything falls
     bricks = bricks |> Map.delete(idx)
     space = space_for_bricks(bricks)
-    falling = bricks |> Enum.filter(&can_fall?(space, &1))
-    falling == []
+    bricks |> Enum.filter(&can_fall?(space, &1))
+  end
+
+  def can_be_desintegrated(bricks, idx) do
+    falling_if_desintegrated(bricks, idx) == []
   end
 
   def run(filename) do
@@ -196,7 +199,7 @@ defmodule P1 do
     IO.inspect("[DDA] == can be desintegrated ===")
 
     bricks
-    |> Enum.map(fn {idx, _brick} -> idx end)
+    |> Map.keys()
     |> Enum.filter(&can_be_desintegrated(bricks, &1))
     |> Enum.count()
     |> IO.inspect()
@@ -204,12 +207,53 @@ defmodule P1 do
 end
 
 defmodule P2 do
+  def fall_with_count(bricks, falled_idxs) do
+    space = P1.space_for_bricks(bricks)
+
+    falling = bricks |> Enum.filter(&P1.can_fall?(space, &1))
+
+    if falling == [] do
+      falled_idxs
+    else
+      bricks_after_fall =
+        for {idx, cubes} <- falling, reduce: bricks do
+          bricks ->
+            Map.put(bricks, idx, Enum.map(cubes, &P1.lower_cube/1))
+        end
+
+      new_faileds_idx = falling |> Enum.map(fn {idx, _} -> idx end) |> MapSet.new()
+
+      fall_with_count(bricks_after_fall, MapSet.union(falled_idxs, new_faileds_idx))
+    end
+  end
+
+  def falling_if_desintegrated(bricks, idx) do
+    bricks = bricks |> Map.delete(idx)
+
+    fall_with_count(bricks, MapSet.new())
+  end
+
+  def run(filename) do
+    bricks = P1.parse_file(filename)
+    bricks = P1.fall(bricks)
+
+    IO.inspect("[DDA] == fall if desintegrated ===")
+
+    bricks
+    |> Map.keys()
+    |> Enum.map(&P2.falling_if_desintegrated(bricks, &1))
+    |> Enum.map(&Enum.count/1)
+    |> Enum.sum()
+    |> IO.inspect()
+  end
 end
 
 defmodule P do
   def start() do
     Cache.setup()
     # P1.run("sample.txt")
-    P1.run("input.txt")
+    # P1.run("input.txt")
+    # P2.run("sample.txt")
+    P2.run("input.txt")
   end
 end
