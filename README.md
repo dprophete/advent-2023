@@ -1,4 +1,6 @@
-# advent-2023
+## Advent of code - 2023
+
+My first time doing it.
 
 # python
 I started in python, with a `p1.py` and `p2.py` in each dir. Just execute them.
