@@ -139,8 +139,12 @@ defmodule P2 do
     |> Enum.filter(fn p -> !(p in visited) && at(map, p) == :empty end)
   end
 
-  def walk_one(map, exit, max_so_far, to_process, {current, visited}, count) do
+  def walk_one(graph, exit, max_so_far, to_process, {{current, dist}, visited}, count) do
     process_next = fn potential_max, count ->
+      if potential_max > max_so_far do
+        IO.inspect("[DDA] new max #{potential_max}, at exit ##{count + 1}")
+      end
+
       max_so_far = max(max_so_far, potential_max)
 
       case to_process do
@@ -149,28 +153,54 @@ defmodule P2 do
           max_so_far
 
         [first | rest] ->
-          walk_one(map, exit, max_so_far, rest, first, count)
+          walk_one(graph, exit, max_so_far, rest, first, count)
       end
     end
 
     if current == exit do
-      # we reached then exit !
-      IO.inspect(
-        "[DDA] max #{max_so_far}, found exit ##{count + 1} with length #{Enum.count(visited)}"
-      )
-
-      process_next.(Enum.count(visited), count + 1)
+      process_next.(dist, count + 1)
     else
-      case nx_moves(map, current, visited) do
+      # IO.inspect(current, label: "[DDA] current")
+
+      case Map.get(graph, current) |> Enum.filter(fn {p, _} -> !(p in visited) end) do
         [] ->
           # no more moves -> we are done with this path
           process_next.(-1, count)
 
-        nxs ->
+        conns ->
           visited = MapSet.put(visited, current)
-          [first | rest] = nxs |> Enum.map(&{&1, visited})
-          walk_one(map, exit, max_so_far, rest ++ to_process, first, count)
+          [first | rest] = conns |> Enum.map(fn {p, w} -> {{p, w + dist}, visited} end)
+          walk_one(graph, exit, max_so_far, rest ++ to_process, first, count)
       end
+    end
+  end
+
+  def optimize_graph(graph) do
+    # is there any node with only 2 conns
+    candidate = graph |> Enum.find(fn {_, conns} -> Enum.count(conns) == 2 end)
+
+    if candidate == nil do
+      graph
+    else
+      # remove the node and update the weight of its neighboors
+      {p_candidate, [{n1, w1}, {n2, w2}]} = candidate
+      graph = Map.delete(graph, p_candidate)
+
+      n1_conns = Map.get(graph, n1)
+
+      n1_conns =
+        Enum.map(n1_conns, fn {p, w} -> if p == p_candidate, do: {n2, w1 + w2}, else: {p, w} end)
+
+      graph = Map.put(graph, n1, n1_conns)
+
+      n2_conns = Map.get(graph, n2)
+
+      n2_conns =
+        Enum.map(n2_conns, fn {p, w} -> if p == p_candidate, do: {n1, w1 + w2}, else: {p, w} end)
+
+      graph = Map.put(graph, n2, n2_conns)
+
+      optimize_graph(graph)
     end
   end
 
@@ -191,32 +221,30 @@ defmodule P2 do
         end
       end
 
-    walk_one(map, exit, 0, [], {entrance, MapSet.new()}, 0)
-    |> IO.inspect(label: "[DDA] max")
-
-    # for path <- paths do
-    #   IO.puts("\n== path length #{Enum.count(path) - 1}")
-    #   pp_map_with_path(map, path)
-    # end
-
-    # paths |> Enum.map(&(Enum.count(&1) - 1)) |> Enum.max() |> IO.inspect()
-
     # prepare for dijkstra_dfs
-    #   graph =
-    #     for {row, y} <- Enum.with_index(map), {c, x} <- Enum.with_index(row) do
-    #       case c do
-    #         ?. ->
-    #           case P1.nx_moves(map, [{x, y}]) do
-    #             [] -> nil
-    #             neighboors -> {{x, y}, Enum.map(neighboors, &{&1, -1})}
-    #           end
 
-    #         _ ->
-    #           nil
-    #       end
-    #     end
-    #     |> Enum.filter(&(&1 != nil))
-    #     |> Enum.into(%{})
+    graph =
+      for {row, y} <- Enum.with_index(map), {c, x} <- Enum.with_index(row) do
+        case c do
+          ?. ->
+            neighboors = nx_moves(map, {x, y}, MapSet.new())
+            {{x, y}, Enum.map(neighboors, &{&1, 1})}
+
+          _ ->
+            nil
+        end
+      end
+      |> Enum.filter(&(&1 != nil))
+      |> Enum.into(%{})
+
+    IO.inspect("[DDA] size before #{Enum.count(graph)}}")
+    # without the optimization, it takes 3 hours... 
+    # with the optimization, it takes 18s...
+    graph = optimize_graph(graph)
+    IO.inspect("[DDA] size after #{Enum.count(graph)}}")
+
+    walk_one(graph, exit, 0, [], {{entrance, 0}, MapSet.new()}, 0)
+    |> IO.inspect(label: "[DDA] max")
   end
 end
 
@@ -225,7 +253,7 @@ defmodule P do
     Cache.setup()
     # P1.run("sample.txt")
     # P1.run("input.txt")
-    P2.run("sample.txt")
-    # P2.run("input.txt")
+    # P2.run("sample.txt")
+    P2.run("input.txt")
   end
 end
