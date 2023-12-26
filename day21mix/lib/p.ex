@@ -292,7 +292,7 @@ defmodule P2 do
     IO.puts("--- predict ---")
 
     dist = ceil(nb_steps / 131)
-    IO.puts("[DDA] dist #{dist}-> will need #{div(4 * dist * dist, 1_000_000_000)}")
+    IO.puts("[DDA] dist #{dist}-> will need #{div(4 * dist * dist, 1_000_000_000)} billion tiles")
 
     res =
       for i <- 1..dist do
