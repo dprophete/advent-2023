@@ -22,6 +22,22 @@ defmodule P1 do
   # --------------------------------------------------------------------------------
   # - pp
   # --------------------------------------------------------------------------------
+
+  def pp_map(map) do
+    map |> Enum.map(&IO.puts(&1))
+  end
+
+  def pp_map_with_path(map, path) do
+    map =
+      for {px, py} <- path, reduce: map do
+        map ->
+          row = Enum.at(map, py)
+          List.replace_at(map, py, List.replace_at(row, px, ?O))
+      end
+
+    pp_map(map)
+  end
+
   # --------------------------------------------------------------------------------
   # - running
   # --------------------------------------------------------------------------------
@@ -42,7 +58,7 @@ defmodule P1 do
     end
   end
 
-  def nx_moves_with_previous(map, path, current = {x, y}) do
+  def nx_moves(map, [{x, y} = current | path]) do
     candidate =
       case at(map, path, current) do
         :up ->
@@ -72,39 +88,14 @@ defmodule P1 do
     end)
   end
 
-  def pp_map(map) do
-    map |> Enum.map(&IO.puts(&1))
-  end
-
-  def pp_map_with_path(map, path) do
-    map =
-      for {px, py} <- path, reduce: map do
-        map ->
-          row = Enum.at(map, py)
-          List.replace_at(map, py, List.replace_at(row, px, ?O))
-      end
-
-    pp_map(map)
-  end
-
   # return array of path which ended up succeeding
+  def walk_one(_map, exit, [exit | _rest] = path) do
+    IO.inspect("[DDA] found exit! with length #{Enum.count(path) - 1}")
+    [path]
+  end
+
   def walk_one(map, exit, path) do
-    [current | rest] = path
-
-    if current == exit do
-      [path]
-    else
-      nx_moves = nx_moves_with_previous(map, rest, current)
-
-      case nx_moves do
-        [] ->
-          []
-
-        _ ->
-          nx_moves
-          |> Enum.flat_map(fn p -> walk_one(map, exit, [p | path]) end)
-      end
-    end
+    nx_moves(map, path) |> Enum.flat_map(fn p -> walk_one(map, exit, [p | path]) end)
   end
 
   def run(filename) do
@@ -121,6 +112,31 @@ defmodule P1 do
 end
 
 defmodule P2 do
+  def run(filename) do
+    {map, entrance, exit} = P1.parse_file(filename)
+
+    map =
+      for row <- map do
+        for c <- row do
+          case c do
+            ?> -> ?.
+            ?< -> ?.
+            ?^ -> ?.
+            ?v -> ?.
+            _ -> c
+          end
+        end
+      end
+
+    paths = P1.walk_one(map, exit, [entrance])
+
+    # for path <- paths do
+    #   IO.puts("\n== path length #{Enum.count(path) - 1}")
+    #   pp_map_with_path(map, path)
+    # end
+
+    paths |> Enum.map(&(Enum.count(&1) - 1)) |> Enum.max() |> IO.inspect()
+  end
 end
 
 defmodule P do
