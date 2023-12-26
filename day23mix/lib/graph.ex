@@ -81,6 +81,7 @@ defmodule Graph do
   # with priority queue
   # --------------------------------------------------------------------------------
 
+  # graph is a map of node -> list of {neighboor, weight}
   def dijkstra_pq(graph, source, dest) do
     # initialize
     nodes = Map.keys(graph)
