@@ -82,13 +82,13 @@ defmodule P1 do
 end
 
 defmodule P2 do
-  def parralels?({vx1, vy1, vz1}, {vx2, vy2, vz2}) do
+  def parallels?({vx1, vy1, vz1}, {vx2, vy2, vz2}) do
     abs(vx1 * vy2 - vy1 * vx2) < 1.0 && abs(vx1 * vz2 - vz1 * vx2) < 1.0 &&
       abs(vy1 * vz2 - vz1 * vy2) < 1.0
   end
 
-  def base_distance({x1, y1, z1}, {x2, y2, z2}) do
-    abs(x1 - x2) + abs(y1 - y2) + abs(z1 - z2)
+  def distance({x1, y1, z1}, {x2, y2, z2}) do
+    :math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2) + (z1 - z2) * (z1 - z2))
   end
 
   def throw_rock(lines, idx1, idx2, idx3) do
@@ -129,7 +129,6 @@ defmodule P2 do
     #
     # that gives us 6 linear equations with 6 unknowns (px, py, pz, vx, vy, vz)
 
-    # IO.inspect("[DDA] --- throw_rock for #{idx1}, #{idx2}, #{idx3}")
     line1 = Enum.at(lines, idx1)
     line2 = Enum.at(lines, idx2)
     line3 = Enum.at(lines, idx3)
@@ -137,13 +136,10 @@ defmodule P2 do
     {{p2x, p2y, p2z}, v2 = {v2x, v2y, v2z}} = line2
     {{p3x, p3y, p3z}, v3 = {v3x, v3y, v3z}} = line3
 
-    if parralels?(v1, v2) || parralels?(v1, v3) || parralels?(v2, v3) do
+    if parallels?(v1, v2) || parallels?(v1, v3) || parallels?(v2, v3) do
+      # don't want parallel lines
       nil
     else
-      # IO.inspect("[DDA] parralels? 1 // 2 #{parralels?(elem(line1, 1), elem(line2, 1))}")
-      # IO.inspect("[DDA] parralels? 1 // 3 #{parralels?(elem(line1, 1), elem(line3, 1))}")
-      # IO.inspect("[DDA] parralels? 2 // 3 #{parralels?(elem(line2, 1), elem(line3, 1))}")
-
       # we will use:
       #
       # M = [[m11, m12, m13, m14, m15, m16],
@@ -198,19 +194,20 @@ defmodule P2 do
       p = {px, py, pz}
       v = {vx, vy, vz}
 
-      # let's look at how far we are really from the intersection
-      # because of rounding errors, this could get quite large
+      # we will compute the distances between the rock and the rays at the intersection point
+      # ideally it is exactly 0, but because of rounding errors, it could be a bit off
+
       rock1_int = {px + t1 * vx, py + t1 * vy, pz + t1 * vz}
       p1_int = {p1x + t1 * v1x, p1y + t1 * v1y, p1z + t1 * v1z}
-      dist1 = base_distance(rock1_int, p1_int)
+      dist1 = distance(rock1_int, p1_int)
 
       rock2_int = {px + t2 * vx, py + t2 * vy, pz + t2 * vz}
       p2_int = {p2x + t2 * v2x, p2y + t2 * v2y, p2z + t2 * v2z}
-      dist2 = base_distance(rock2_int, p2_int)
+      dist2 = distance(rock2_int, p2_int)
 
       rock3_int = {px + t3 * vx, py + t3 * vy, pz + t3 * vz}
       p3_int = {p3x + t3 * v3x, p3y + t3 * v3y, p3z + t3 * v3z}
-      dist3 = base_distance(rock3_int, p3_int)
+      dist3 = distance(rock3_int, p3_int)
 
       {p, v, {t1, t2, t3}, {dist1, dist2, dist3}}
     end
@@ -223,8 +220,10 @@ defmodule P2 do
   def run(filename) do
     lines = P1.parse_file(filename)
     nb_lines = Enum.count(lines)
-    # IO.inspect(lines, label: "[DDA] lines")
 
+    # Note that the numbers in play (x, y, z) are so large that resolving the linear equations
+    # produces a lot of rounding errors.
+    # We will then solve the equation for every single triplet of lines and keep the best solution
     {dist, {px, py, pz}} =
       for idx1 <- 0..(nb_lines - 1),
           idx2 <- 0..(nb_lines - 1),
@@ -239,13 +238,14 @@ defmodule P2 do
 
             {{px, py, pz} = p, _v, {t1, t2, t3}, {dist1, dist2, dist3}} ->
               if t1 < 0 || t2 < 0 || t3 < 0 do
+                # we only want the solutions where the rock intersect the rays in the future
                 {dist0, p0}
               else
                 dist = dist1 + dist2 + dist3
 
                 if dist < dist0 do
                   IO.inspect(
-                    "[DDA] new potential solution: #{px + py + pz} with a dist of #{dist}"
+                    "[DDA] potential solution: #{round(px + py + pz)}, dist: #{round(dist)}"
                   )
 
                   {dist, p}
@@ -256,7 +256,7 @@ defmodule P2 do
           end
       end
 
-    IO.puts("[DDA] solution: #{px + py + pz} with a dist of #{dist}")
+    IO.inspect("[DDA] solution: #{round(px + py + pz)}, dist: #{round(dist)}")
   end
 end
 
