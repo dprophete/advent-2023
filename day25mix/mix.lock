@@ -1,0 +1,12 @@
+%{
+  "dialyxir": {:hex, :dialyxir, "1.4.2", "764a6e8e7a354f0ba95d58418178d486065ead1f69ad89782817c296d0d746a5", [:mix], [{:erlex, ">= 0.2.6", [hex: :erlex, repo: "hexpm", optional: false]}], "hexpm", "516603d8067b2fd585319e4b13d3674ad4f314a5902ba8130cd97dc902ce6bbd"},
+  "erlex": {:hex, :erlex, "0.2.6", "c7987d15e899c7a2f34f5420d2a2ea0d659682c06ac607572df55a43753aa12e", [:mix], [], "hexpm", "2ed2e25711feb44d52b17d2780eabf998452f6efda104877a3881c2f8c0c0c75"},
+  "ex_maybe": {:hex, :ex_maybe, "1.1.1", "95c0188191b43bd278e876ae4f0a688922e3ca016a9efd97ee7a0b741a61b899", [:mix], [], "hexpm", "1af8c78c915c7f119a513b300a1702fc5cc9fed42d54fd85995265e4c4b763d2"},
+  "exprintf": {:hex, :exprintf, "0.2.1", "b7e895dfb00520cfb7fc1671303b63b37dc3897c59be7cbf1ae62f766a8a0314", [:mix], [], "hexpm", "20a0e8c880be90e56a77fcc82533c5d60c643915c7ce0cc8aa1e06ed6001da28"},
+  "heap": {:hex, :heap, "3.0.0", "c6dbcd6e9a0b021432176e89cfd829dd065bd6c115981fdcd981a4251fff5fde", [:mix], [], "hexpm", "373eaca5787e2a2b009c42338e70414f590ceabcf96cfc786627ed762ad4dfc6"},
+  "matrix": {:git, "https://github.com/fabio-t/elixir-matrix", "7899664a2ab7cfc9d9af6b75fea5f1467d6d8e17", []},
+  "matrix_reloaded": {:hex, :matrix_reloaded, "2.3.0", "eea41bc6713021f8f51dde0c2d6b72e695a99098753baebf0760e10aed8fa777", [:mix], [{:ex_maybe, "~> 1.0", [hex: :ex_maybe, repo: "hexpm", optional: false]}, {:result, "~> 1.7", [hex: :result, repo: "hexpm", optional: false]}], "hexpm", "4013c0cebe5dfffc8f2316675b642fb2f5a1dfc4bdc40d2c0dfa0563358fa496"},
+  "pqueue": {:hex, :pqueue, "2.0.7", "de663276840debd8385e418317f7239f010f82b4d1348daf93d651ac48c750d6", [:rebar3], [], "hexpm", "8b0204bb202335890e4e7f9b99a8ec0b84ddb8513ee298eb180ee9b3bcb4c859"},
+  "priority_queue": {:hex, :priority_queue, "1.0.0", "5ff5f83a764b635e71f0e41bf78b9763bb233bbac8f5733b4b09b6730bddf866", [:mix], [], "hexpm", "ba3dc420a5898d863803455c05ad870c6b6f3adb12b50ebea6cd6aeed1b358b7"},
+  "result": {:hex, :result, "1.7.2", "a57c569f7cf5c158d2299d3b5624a48b69bd1520d0771dc711bcf9f3916e8ab6", [:mix], [], "hexpm", "89f98e98cfbf64237ecf4913aa36b76b80463e087775d19953dc4b435a35f087"},
+}
