@@ -130,4 +130,48 @@ defmodule Graph do
       end
     end
   end
+
+  def dijkstra_pq_all2(graph, source) do
+    # initialize
+    nodes = Map.keys(graph)
+
+    # all distances are set to infinity initally
+    distances = for node <- nodes, into: %{}, do: {node, @max_dist}
+    distances = Map.put(distances, source, 0)
+
+    unvisited = Heap.new(fn {_, x}, {_, y} -> x < y end)
+    unvisited = Heap.push(unvisited, {source, 0})
+
+    dijkstra_pq_inner2(graph, unvisited, distances)
+  end
+
+  defp dijkstra_pq_inner2(graph, unvisited, distances) do
+    if Heap.empty?(unvisited) do
+      distances
+    else
+      {current_nd, current_dist} = Heap.root(unvisited)
+      unvisited = Heap.pop(unvisited)
+
+      if current_dist > Map.get(distances, current_nd) do
+        dijkstra_pq_inner(graph, unvisited, distances)
+      else
+        {unvisited, distances} =
+          Map.get(graph, current_nd)
+          |> Enum.reduce({unvisited, distances}, fn neighboor, {unvisited, distances} ->
+            dist_neighboor = current_dist + 1
+
+            if dist_neighboor < Map.get(distances, neighboor) do
+              {
+                Heap.push(unvisited, {neighboor, dist_neighboor}),
+                Map.put(distances, neighboor, dist_neighboor)
+              }
+            else
+              {unvisited, distances}
+            end
+          end)
+
+        dijkstra_pq_inner2(graph, unvisited, distances)
+      end
+    end
+  end
 end
