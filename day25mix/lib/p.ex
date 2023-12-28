@@ -110,18 +110,18 @@ defmodule P1 do
     IO.inspect(nb_nodes, label: "[DDA] nb nodes")
 
     # we want to picl a first node that has a lot of connections
-    shuffle1 = Enum.shuffle(base_conns)
-    shuffle2 = Enum.shuffle(base_conns)
-    shuffle3 = Enum.shuffle(base_conns)
-
-    node1 =
+    sorted_nodes_by_nb_conn =
       graph
       |> Enum.to_list()
       |> Enum.map(fn {node, v} -> {node, Enum.count(v)} end)
       |> Enum.sort(fn {_, count1}, {_, count2} -> count1 > count2 end)
-      |> List.first()
-      |> IO.inspect(label: "[DDA] first node")
-      |> elem(0)
+      |> Enum.map(fn {node, _} -> node end)
+
+    node1 = List.last(sorted_nodes_by_nb_conn)
+
+    shuffle1 = base_conns
+    shuffle2 = base_conns
+    shuffle3 = base_conns
 
     for conn1 <- shuffle1,
         conn2 <- shuffle2,
@@ -129,18 +129,24 @@ defmodule P1 do
         conn2 != conn1,
         conn1 != conn3,
         conn2 != conn3,
-        reduce: {0, MapSet.new()} do
-      {count, visited} ->
+        reduce: {0, MapSet.new(), false} do
+      {count, visited, true} ->
+        {count, visited, true}
+
+      {count, visited, false} ->
         {lhs1, rhs1} = conn1
         {lhs2, rhs2} = conn2
         {lhs3, rhs3} = conn3
         key = [lhs1, rhs1, lhs2, rhs2, lhs3, rhs3] |> Enum.sort() |> Enum.join("-")
 
         if MapSet.member?(visited, key) do
-          {count + 1, visited}
+          {count + 1, visited, false}
         else
           graph =
-            graph |> remove_full_conn(conn1) |> remove_full_conn(conn2) |> remove_full_conn(conn3)
+            graph
+            |> remove_full_conn(conn1)
+            |> remove_full_conn(conn2)
+            |> remove_full_conn(conn3)
 
           visited = MapSet.put(visited, key)
 
@@ -148,19 +154,23 @@ defmodule P1 do
             IO.puts("[DDA] #{count}...")
           end
 
-          if !can_reach_all(graph, node1) do
-            IO.puts("[DDA] #{inspect(conn1)}, #{inspect(conn2)}, #{inspect(conn3)}")
+          done? =
+            if can_reach_all(graph, node1) do
+              false
+            else
+              IO.puts("[DDA] #{inspect(conn1)}, #{inspect(conn2)}, #{inspect(conn3)}")
 
-            non_full_rings =
-              nodes
-              |> Enum.map(fn node -> Enum.count(ring(graph, node)) end)
-              |> Enum.filter(fn count -> count != nb_nodes end)
-              |> Enum.uniq()
+              non_full_rings =
+                nodes
+                |> Enum.map(fn node -> Enum.count(ring(graph, node)) end)
+                |> Enum.filter(fn count -> count != nb_nodes end)
+                |> Enum.uniq()
 
-            IO.puts("[DDA] -> will lead to splits #{inspect(non_full_rings)}")
-          end
+              IO.puts("[DDA] -> will lead to splits #{inspect(non_full_rings)}")
+              true
+            end
 
-          {count + 1, visited}
+          {count + 1, visited, done?}
         end
     end
   end
@@ -172,8 +182,8 @@ end
 defmodule P do
   def start() do
     Cache.setup()
-    # P1.run("sample.txt")
-    P1.run("input.txt")
+    P1.run("sample.txt")
+    # P1.run("input.txt")
     # P2.run("input.txt")
   end
 end
