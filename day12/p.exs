@@ -113,8 +113,6 @@ defmodule P1 do
 
         false ->
           # note that we can not skip any #
-          c_at = Enum.at(spring, idx)
-
           if spring
              |> Enum.slice(start_idx, idx - start_idx + 1)
              |> Enum.any?(fn c -> c == ?# == true end) do
