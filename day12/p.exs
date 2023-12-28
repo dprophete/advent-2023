@@ -12,6 +12,7 @@ defmodule Cache do
   def cache(key, func) do
     case :ets.lookup(:cache, key) do
       [{_, val}] ->
+        add_hit()
         val
 
       [] ->
@@ -21,14 +22,31 @@ defmodule Cache do
     end
   end
 
+  defp add_hit() do
+    nb_hits =
+      case :ets.lookup(:cache, :hits) do
+        [{_, val}] ->
+          val
+
+        _ ->
+          0
+      end
+
+    :ets.insert(:cache, {:hits, nb_hits + 1})
+  end
+
   def put(key, val) do
     :ets.insert(:cache, {key, val})
   end
 
   def get(key) do
     case :ets.lookup(:cache, key) do
-      [{_, val}] -> val
-      _ -> nil
+      [{_, val}] ->
+        add_hit()
+        val
+
+      _ ->
+        nil
     end
   end
 end
@@ -143,15 +161,9 @@ defmodule P1 do
           key = {:idxs, spring, idx, damage, nb_damages_remaining}
 
           idxs =
-            case Cache.get(key) do
-              nil ->
-                idxs = find_range_of_len(spring, idx, damage, nb_damages_remaining)
-                Cache.put(key, idxs)
-                idxs
-
-              idxs ->
-                idxs
-            end
+            Cache.cache(key, fn ->
+              find_range_of_len(spring, idx, damage, nb_damages_remaining)
+            end)
 
           for idx <- idxs do
             {idx + damage + 1, nb_damages_remaining}
@@ -212,6 +224,7 @@ Cache.setup()
 # P1.run("sample.txt")
 P1.run("input.txt")
 P2.run("sample.txt")
+IO.puts("[DDA] nb hits: #{Cache.get(:hits)}")
 # P2.run("sample2.txt")
 # P2.run("input.txt")
 
