@@ -244,71 +244,7 @@ end
 
 Cache.setup()
 # P1.run("sample.txt")
-# P1.run("sample2.txt")
 # P1.run("input.txt")
 # P2.run("sample.txt")
-# IO.puts("[DDA] nb hits: #{Cache.get(:hits)}")
 P2.run("input.txt")
-
-# time to beat:
-#
-# with cache:
-#  total: 7716
-#  #row 0 -> count 1
-#  #row 1 -> count 16384
-#  #row 2 -> count 1
-#  #row 3 -> count 16
-#  #row 4 -> count 2500
-#  #row 5 -> count 506250
-#  total: 525152
-#  ./p.exs  0.61s user 0.55s system 189% cpu 0.608 total
-#
-#  ~/tmp/advent-2023/day12 (main*) » time ./p.exs 
-#  #row 0 -> count 1
-#  #row 1 -> count 16384
-#  #row 2 -> count 1
-#  #row 3 -> count 16
-#  #row 4 -> count 2500
-#  #row 5 -> count 506250
-#  total: 525152
-#  ./p.exs  129.99s user 23.40s system 96% cpu 2:39.52 total
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# ~/tmp/advent-2023/day12 (main*) » time ./p.exs
-# #row 0 -> count 1
-# #row 1 -> count 16384
-# #row 2 -> count 1
-# #row 3 -> count 16
-# #row 4 -> count 2500
-# #row 5 -> count 506250
-# total: 525152
-# ./p.exs  92.62s user 12.58s system 98% cpu 1:47.07 total
-#
-#
-# #row 0 -> count 1
-# #row 1 -> count 16384
-# #row 2 -> count 1
-# #row 3 -> count 16
-# #row 4 -> count 2500
-# #row 5 -> count 506250
-# total: 525152
-# ./p.exs  8.75s user 1.11s system 102% cpu 9.587 total
-#
-#
-# #row 0 -> count 1
-# #row 1 -> count 16384
-# #row 2 -> count 1
-# #row 3 -> count 16
-# #row 4 -> count 2500
-# #row 5 -> count 506250
-# total: 525152
-# ./p.exs  3.41s user 0.73s system 112% cpu 3.690 total
-#
-#
-# #row 0 -> count 1
-# #row 1 -> count 16384
-# #row 2 -> count 1
-# #row 3 -> count 16
-# #row 4 -> count 2500
-# #row 5 -> count 506250
-# total: 525152
-# ./p.exs  1.32s user 0.55s system 137% cpu 1.358 total
+IO.puts("[DDA] nb hits: #{Cache.get(:hits)}")
