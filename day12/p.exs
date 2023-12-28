@@ -140,7 +140,20 @@ defmodule P1 do
         |> Enum.flat_map(fn {idx, nb_damages_remaining} ->
           nb_damages_remaining = nb_damages_remaining - damage
 
-          for idx <- find_range_of_len(spring, idx, damage, nb_damages_remaining) do
+          key = {:idxs, spring, idx, damage, nb_damages_remaining}
+
+          idxs =
+            case Cache.get(key) do
+              nil ->
+                idxs = find_range_of_len(spring, idx, damage, nb_damages_remaining)
+                Cache.put(key, idxs)
+                idxs
+
+              idxs ->
+                idxs
+            end
+
+          for idx <- idxs do
             {idx + damage + 1, nb_damages_remaining}
           end
         end)
@@ -195,7 +208,7 @@ defmodule P2 do
   end
 end
 
-# 4 1 1 4 10
+Cache.setup()
 # P1.run("sample.txt")
 P1.run("input.txt")
 P2.run("sample.txt")
@@ -203,6 +216,18 @@ P2.run("sample.txt")
 # P2.run("input.txt")
 
 # time to beat:
+#
+# with cache:
+#  total: 7716
+#  #row 0 -> count 1
+#  #row 1 -> count 16384
+#  #row 2 -> count 1
+#  #row 3 -> count 16
+#  #row 4 -> count 2500
+#  #row 5 -> count 506250
+#  total: 525152
+#  ./p.exs  0.61s user 0.55s system 189% cpu 0.608 total
+#
 #  ~/tmp/advent-2023/day12 (main*) » time ./p.exs 
 #  #row 0 -> count 1
 #  #row 1 -> count 16384
