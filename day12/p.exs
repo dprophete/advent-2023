@@ -73,22 +73,12 @@ defmodule P1 do
 
   def pp_spring(spring), do: spring |> Enum.slice(1, Enum.count(spring) - 2) |> to_string
 
-  def pp_arrangements(arrs) do
-    arrs
-    |> Enum.with_index(1)
-    |> Enum.map(fn {spring, idx} -> "       #{pp_spring(spring)} (#{idx})" end)
-    |> Enum.join("\n")
-  end
-
   # --------------------------------------------------------------------------------
   # - running
   # --------------------------------------------------------------------------------
 
-  def reduce_with_index(list, acc, fun) do
-    list |> Enum.with_index() |> Enum.reduce(acc, fun)
-  end
-
-  def find_range_of_len(spring, start_idx, damage, nb_damages_remaining) do
+  # find all the possible idx where this damage can be placed
+  def find_idxs_for_damage(spring, start_idx, damage, nb_damages_remaining) do
     len = length(spring)
 
     key =
@@ -147,49 +137,30 @@ defmodule P1 do
     end)
   end
 
-  def process2(_spring, _idx, _nb_damages_remaining, []), do: 1
+  def process_spring({spring, damages}) do
+    process_inner(spring, 0, Enum.sum(damages), damages)
+  end
 
-  def process2(spring, idx, nb_damages_remaining, damages = [damage | rest]) do
-    key = {:process2, spring |> Enum.slice(idx, Enum.count(spring)), damages}
+  def process_inner(_spring, _idx, _nb_damages_remaining, []), do: 1
+
+  def process_inner(spring, idx, nb_damages_remaining, damages = [damage | rest]) do
+    key = {:process_inner, spring |> Enum.slice(idx, Enum.count(spring)), damages}
 
     Cache.cache(key, fn ->
       nb_damages_remaining = nb_damages_remaining - damage
 
-      idxs = find_range_of_len(spring, idx, damage, nb_damages_remaining)
+      idxs = find_idxs_for_damage(spring, idx, damage, nb_damages_remaining)
 
       if idxs == [] do
         0
       else
         idxs
         |> Enum.map(fn idx ->
-          process2(spring, idx + damage + 1, nb_damages_remaining, rest)
+          process_inner(spring, idx + damage + 1, nb_damages_remaining, rest)
         end)
         |> Enum.sum()
       end
     end)
-  end
-
-  def process_spring({spring, damages}) do
-    process2(spring, 0, Enum.sum(damages), damages)
-  end
-
-  def process_spring_({spring, damages}) do
-    nb_damages = Enum.sum(damages)
-
-    for damage <- damages, reduce: [{0, nb_damages}] do
-      acc ->
-        acc
-        |> Enum.flat_map(fn {idx, nb_damages_remaining} ->
-          nb_damages_remaining = nb_damages_remaining - damage
-
-          idxs = find_range_of_len(spring, idx, damage, nb_damages_remaining)
-
-          for idx <- idxs do
-            {idx + damage + 1, nb_damages_remaining}
-          end
-        end)
-    end
-    |> Enum.count()
   end
 
   def run(filename) do
@@ -201,14 +172,8 @@ defmodule P1 do
       spring = Regex.replace(~r/\.+/, spring, ".")
       spring = String.to_charlist(spring)
 
-      # IO.inspect(idx, label: "[DDA] ============= idx, spring #{spring0}")
       nb_arrangements = process_spring({spring, damages})
-
-      # IO.puts(
-      #   #   # "#{pp_row({spring, damages})} -> count #{length(arrangements)}\n#{pp_arrangements(arrangements)}\n"
-      #   "#{pp_row({spring, damages})} -> count #{nb_arrangements}"
-      # )
-
+      IO.puts("#{pp_row({spring, damages})} -> count #{nb_arrangements}")
       nb_arrangements
     end
     |> Enum.sum()
@@ -219,6 +184,7 @@ end
 defmodule P2 do
   def run(filename) do
     for {{spring, damages}, idx} <- P1.parse_file(filename) |> Enum.with_index() do
+      {base_spring, base_damages} = {spring, damages}
       spring = "." <> Enum.join([spring, spring, spring, spring, spring], "?") <> "."
 
       # small optimization: a sequence of '...' is the same as a single '.'
@@ -229,12 +195,10 @@ defmodule P2 do
 
       nb_arrangements = P1.process_spring({spring, damages})
 
-      # IO.puts(
-      #   # "#{pp_row({spring, damages})} -> count #{length(arrangements)}\n#{pp_arrangements(arrangements)}\n"
-      #   "#{P1.pp_row({spring, damages})} -> count #{length(arrangements)}"
-      # )
+      IO.puts(
+        "#{P1.pp_row({String.to_charlist(base_spring), base_damages})} -> count #{nb_arrangements}"
+      )
 
-      IO.puts("#row #{idx} -> count #{nb_arrangements}")
       nb_arrangements
     end
     |> Enum.sum()
