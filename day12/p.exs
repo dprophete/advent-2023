@@ -89,67 +89,91 @@ defmodule P1 do
   end
 
   def find_range_of_len(spring, start_idx, damage, nb_damages_remaining) do
-    # we need to find a range of damage damage starting at idx start_idx, made of either ? or .
-    # IO.puts("tring for spring #{spring}, start_idx #{start_idx}, damage #{damage}")
-
     len = length(spring)
 
-    start_idx..len
-    |> Enum.reduce_while([], fn idx, acc ->
-      c_before = Enum.at(spring, idx - 1)
-      c_after = Enum.at(spring, idx + damage)
+    key =
+      {:idxs, spring, start_idx, damage, nb_damages_remaining}
 
-      # valid if:
-      # - we have space before
-      # - we have space after
-      # - all the elements of the range are available
-      # - we have enough spots for the remaining damages
-      # - we don't have too many spots
-      is_valid =
-        (c_before == ?. || c_before == ??) &&
-          (c_after == ?. || c_after == ??) &&
-          spring |> Enum.slice(idx, damage) |> Enum.all?(fn c -> c == ?# or c == ?? end) &&
-          spring
-          |> Enum.slice(idx + damage + 1, len)
-          |> then(fn rest ->
-            {nb1, nb2} =
-              for c <- rest, reduce: {0, 0} do
-                {nb1, nb2} ->
-                  case c do
-                    ?# -> {nb1 + 1, nb2 + 1}
-                    ?? -> {nb1 + 1, nb2}
-                    _ -> {nb1, nb2}
-                  end
-              end
+    Cache.cache(key, fn ->
+      # we need to find a range of damage damage starting at idx start_idx, made of either ? or .
+      # IO.puts("tring for spring #{spring}, start_idx #{start_idx}, damage #{damage}")
 
-            nb1 >= nb_damages_remaining && nb2 <= nb_damages_remaining
-          end)
+      start_idx..len
+      |> Enum.reduce_while([], fn idx, acc ->
+        c_before = Enum.at(spring, idx - 1)
+        c_after = Enum.at(spring, idx + damage)
 
-      case is_valid do
-        true ->
-          {:cont, [idx | acc]}
+        # valid if:
+        # - we have space before
+        # - we have space after
+        # - all the elements of the range are available
+        # - we have enough spots for the remaining damages
+        # - we don't have too many spots
+        is_valid =
+          (c_before == ?. || c_before == ??) &&
+            (c_after == ?. || c_after == ??) &&
+            spring |> Enum.slice(idx, damage) |> Enum.all?(fn c -> c == ?# or c == ?? end) &&
+            spring
+            |> Enum.slice(idx + damage + 1, len)
+            |> then(fn rest ->
+              {nb1, nb2} =
+                for c <- rest, reduce: {0, 0} do
+                  {nb1, nb2} ->
+                    case c do
+                      ?# -> {nb1 + 1, nb2 + 1}
+                      ?? -> {nb1 + 1, nb2}
+                      _ -> {nb1, nb2}
+                    end
+                end
 
-        false ->
-          # note that we can not skip any #
-          if spring
-             |> Enum.slice(start_idx, idx - start_idx + 1)
-             |> Enum.any?(fn c -> c == ?# == true end) do
-            {:halt, acc}
-          else
-            {:cont, acc}
-          end
+              nb1 >= nb_damages_remaining && nb2 <= nb_damages_remaining
+            end)
+
+        case is_valid do
+          true ->
+            {:cont, [idx | acc]}
+
+          false ->
+            # note that we can not skip any #
+            if spring
+               |> Enum.slice(start_idx, idx - start_idx + 1)
+               |> Enum.any?(fn c -> c == ?# == true end) do
+              {:halt, acc}
+            else
+              {:cont, acc}
+            end
+        end
+      end)
+    end)
+  end
+
+  def process2(_spring, _idx, _nb_damages_remaining, []), do: 1
+
+  def process2(spring, idx, nb_damages_remaining, damages = [damage | rest]) do
+    key = {:process2, spring |> Enum.slice(idx, Enum.count(spring)), damages}
+
+    Cache.cache(key, fn ->
+      nb_damages_remaining = nb_damages_remaining - damage
+
+      idxs = find_range_of_len(spring, idx, damage, nb_damages_remaining)
+
+      if idxs == [] do
+        0
+      else
+        idxs
+        |> Enum.map(fn idx ->
+          process2(spring, idx + damage + 1, nb_damages_remaining, rest)
+        end)
+        |> Enum.sum()
       end
     end)
   end
 
-  # def put_damage_at(spring, idx, damage) do
-  #   middle = List.duplicate(?#, damage)
-  #   first = Enum.slice(spring, 0, idx)
-  #   last = Enum.slice(spring, idx + damage, length(spring) - idx - damage + 1)
-  #   first ++ middle ++ last
-  # end
-
   def process_spring({spring, damages}) do
+    process2(spring, 0, Enum.sum(damages), damages)
+  end
+
+  def process_spring_({spring, damages}) do
     nb_damages = Enum.sum(damages)
 
     for damage <- damages, reduce: [{0, nb_damages}] do
@@ -158,36 +182,34 @@ defmodule P1 do
         |> Enum.flat_map(fn {idx, nb_damages_remaining} ->
           nb_damages_remaining = nb_damages_remaining - damage
 
-          key = {:idxs, spring, idx, damage, nb_damages_remaining}
-
-          idxs =
-            Cache.cache(key, fn ->
-              find_range_of_len(spring, idx, damage, nb_damages_remaining)
-            end)
+          idxs = find_range_of_len(spring, idx, damage, nb_damages_remaining)
 
           for idx <- idxs do
             {idx + damage + 1, nb_damages_remaining}
           end
         end)
     end
+    |> Enum.count()
   end
 
   def run(filename) do
     for {spring, damages} <- parse_file(filename) do
+      spring0 = spring
       spring = "." <> spring <> "."
 
       # small optimization: a sequence of '...' is the same as a single '.'
       spring = Regex.replace(~r/\.+/, spring, ".")
       spring = String.to_charlist(spring)
 
-      arrangements = process_spring({spring, damages})
+      # IO.inspect(idx, label: "[DDA] ============= idx, spring #{spring0}")
+      nb_arrangements = process_spring({spring, damages})
 
       # IO.puts(
-      #   # "#{pp_row({spring, damages})} -> count #{length(arrangements)}\n#{pp_arrangements(arrangements)}\n"
-      #   "#{pp_row({spring, damages})} -> count #{length(arrangements)}"
+      #   #   # "#{pp_row({spring, damages})} -> count #{length(arrangements)}\n#{pp_arrangements(arrangements)}\n"
+      #   "#{pp_row({spring, damages})} -> count #{nb_arrangements}"
       # )
 
-      length(arrangements)
+      nb_arrangements
     end
     |> Enum.sum()
     |> IO.inspect(label: "total")
@@ -204,16 +226,16 @@ defmodule P2 do
       spring = String.to_charlist(spring)
 
       damages = damages ++ damages ++ damages ++ damages ++ damages
-      arrangements = P1.process_spring({spring, damages})
+
+      nb_arrangements = P1.process_spring({spring, damages})
 
       # IO.puts(
       #   # "#{pp_row({spring, damages})} -> count #{length(arrangements)}\n#{pp_arrangements(arrangements)}\n"
       #   "#{P1.pp_row({spring, damages})} -> count #{length(arrangements)}"
       # )
 
-      IO.puts("#row #{idx} -> count #{length(arrangements)}")
-
-      length(arrangements)
+      IO.puts("#row #{idx} -> count #{nb_arrangements}")
+      nb_arrangements
     end
     |> Enum.sum()
     |> IO.inspect(label: "total")
@@ -222,10 +244,11 @@ end
 
 Cache.setup()
 # P1.run("sample.txt")
-P1.run("input.txt")
-P2.run("sample.txt")
-IO.puts("[DDA] nb hits: #{Cache.get(:hits)}")
-# P2.run("input.txt")
+# P1.run("sample2.txt")
+# P1.run("input.txt")
+# P2.run("sample.txt")
+# IO.puts("[DDA] nb hits: #{Cache.get(:hits)}")
+P2.run("input.txt")
 
 # time to beat:
 #
