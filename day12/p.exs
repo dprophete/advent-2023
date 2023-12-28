@@ -1,9 +1,9 @@
 #!/usr/bin/env elixir
 
 defmodule P1 do
-  def reduce_with_index(list, acc, fun) do
-    list |> Enum.with_index() |> Enum.reduce(acc, fun)
-  end
+  # --------------------------------------------------------------------------------
+  # - parsing
+  # --------------------------------------------------------------------------------
 
   def parse_file(filename) do
     for line <- File.read!(filename) |> String.split("\n", trim: true) do
@@ -12,6 +12,29 @@ defmodule P1 do
       damages = rest |> String.split(",") |> Enum.map(&String.to_integer/1)
       {springs, damages}
     end
+  end
+
+  # --------------------------------------------------------------------------------
+  # - pp
+  # --------------------------------------------------------------------------------
+
+  def pp_row({spring, damages}), do: "spring #{pp_spring(spring)} #{inspect(damages)}"
+
+  def pp_spring(spring), do: spring |> Enum.slice(1, Enum.count(spring) - 2) |> to_string
+
+  def pp_arrangements(arrs) do
+    arrs
+    |> Enum.with_index(1)
+    |> Enum.map(fn {spring, idx} -> "       #{pp_spring(spring)} (#{idx})" end)
+    |> Enum.join("\n")
+  end
+
+  # --------------------------------------------------------------------------------
+  # - running
+  # --------------------------------------------------------------------------------
+
+  def reduce_with_index(list, acc, fun) do
+    list |> Enum.with_index() |> Enum.reduce(acc, fun)
   end
 
   def find_range_of_len(spring, start_idx, damage, nb_damages_remaining) do
@@ -28,7 +51,7 @@ defmodule P1 do
       # valid if:
       # - we have space before
       # - we have space after
-      # -all the elements of the range are available
+      # - all the elements of the range are available
       # - we have enough spots for the remaining damages
       # - we don't have too many spots
       is_valid =
@@ -69,30 +92,17 @@ defmodule P1 do
   def process_spring({spring, damages}) do
     nb_damages = Enum.sum(damages)
 
-    damages
-    |> Enum.reduce([{0, 0, nb_damages}], fn damage, acc ->
-      acc
-      |> Enum.flat_map(fn {idx, nb_used_damages, nb_damages_remaining} ->
-        nb_damages_remaining = nb_damages_remaining - damage
+    for damage <- damages, reduce: [{0, 0, nb_damages}] do
+      acc ->
+        acc
+        |> Enum.flat_map(fn {idx, nb_used_damages, nb_damages_remaining} ->
+          nb_damages_remaining = nb_damages_remaining - damage
 
-        find_range_of_len(spring, idx, damage, nb_damages_remaining)
-        |> Enum.map(fn idx ->
-          {idx + damage + 1, nb_used_damages + damage, nb_damages_remaining}
+          for idx <- find_range_of_len(spring, idx, damage, nb_damages_remaining) do
+            {idx + damage + 1, nb_used_damages + damage, nb_damages_remaining}
+          end
         end)
-      end)
-    end)
-    |> Enum.map(&elem(&1, 1))
-  end
-
-  def pp_row({spring, damages}), do: "spring #{pp_spring(spring)} #{inspect(damages)}"
-
-  def pp_spring(spring), do: spring |> Enum.slice(1, Enum.count(spring) - 2) |> to_string
-
-  def pp_arrangements(arrs) do
-    arrs
-    |> Enum.with_index(1)
-    |> Enum.map(fn {spring, idx} -> "       #{pp_spring(spring)} (#{idx})" end)
-    |> Enum.join("\n")
+    end
   end
 
   def run(filename) do
@@ -129,9 +139,10 @@ defmodule P2 do
       damages = damages ++ damages ++ damages ++ damages ++ damages
       arrangements = P1.process_spring({spring, damages})
 
-      # IO.puts(
-      #   "#{P1.pp_row({spring, damages})} -> count #{length(arrangements)}\n#{P1.pp_arrangements(arrangements)}\n"
-      # )
+      IO.puts(
+        # "#{pp_row({spring, damages})} -> count #{length(arrangements)}\n#{pp_arrangements(arrangements)}\n"
+        "#{P1.pp_row({spring, damages})} -> count #{length(arrangements)}"
+      )
 
       IO.puts("#row #{idx} -> count #{length(arrangements)}")
 
@@ -144,8 +155,8 @@ end
 
 # 4 1 1 4 10
 # P1.run("sample.txt")
-P1.run("input.txt")
-# P2.run("sample.txt")
+# P1.run("input.txt")
+P2.run("sample.txt")
 # P2.run("input.txt")
 
 # time to beat:
