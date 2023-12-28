@@ -99,8 +99,17 @@ defmodule P1 do
                 spring
                 |> Enum.slice(idx + damage + 1, len)
                 |> then(fn rest ->
-                  rest |> Enum.count(fn c -> c == ?# || c == ?? end) >= nb_damages_remaining &&
-                    rest |> Enum.count(fn c -> c == ?# end) <= nb_damages_remaining
+                  {nb1, nb2} =
+                    for c <- rest, reduce: {0, 0} do
+                      {nb1, nb2} ->
+                        case c do
+                          ?# -> {nb1 + 1, nb2 + 1}
+                          ?? -> {nb1 + 1, nb2}
+                          _ -> {nb1, nb2}
+                        end
+                    end
+
+                  nb1 >= nb_damages_remaining && nb2 <= nb_damages_remaining
                 end)
 
             Cache.put(key, is_valid)
