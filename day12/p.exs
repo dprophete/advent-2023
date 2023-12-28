@@ -225,7 +225,6 @@ Cache.setup()
 P1.run("input.txt")
 P2.run("sample.txt")
 IO.puts("[DDA] nb hits: #{Cache.get(:hits)}")
-# P2.run("sample2.txt")
 # P2.run("input.txt")
 
 # time to beat:
