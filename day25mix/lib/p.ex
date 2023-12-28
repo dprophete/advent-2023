@@ -11,168 +11,101 @@ defmodule P1 do
     for line <- File.read!(filename) |> String.split("\n", trim: true), into: %{} do
       [lhs, rhs] = String.split(line, ": ")
       rhs = String.split(rhs, " ")
-      {lhs, MapSet.new(rhs)}
+      {lhs, rhs}
     end
   end
-
-  # --------------------------------------------------------------------------------
-  # - pp
-  # --------------------------------------------------------------------------------
 
   # --------------------------------------------------------------------------------
   # - running
   # --------------------------------------------------------------------------------
 
-  def graph_to_conns(graph) do
-    for {lhs, rhs} <- graph, rhs <- rhs do
-      [{lhs, rhs}, {rhs, lhs}]
+  # Karger’s algorithm
+  def contract(graph, fconn) do
+    {{lhs, rhs}, _oconn} = fconn
+
+    new_name = "#{lhs}-#{rhs}"
+
+    for fconn0 = {{lhs_, rhs_}, oconn} <- graph do
+      cond do
+        lhs_ == lhs && rhs_ == rhs -> nil
+        lhs_ == rhs && rhs_ == lhs -> nil
+        lhs_ == lhs -> {{new_name, rhs_}, oconn}
+        lhs_ == rhs -> {{new_name, rhs_}, oconn}
+        rhs_ == rhs -> {{lhs_, new_name}, oconn}
+        rhs_ == lhs -> {{lhs_, new_name}, oconn}
+        true -> fconn0
+      end
     end
+    |> Enum.filter(fn x -> x != nil end)
+  end
+
+  def kargers_split(graph) do
+    if nb_nodes(graph) == 2 do
+      graph
+    else
+      # pick a random connection and 'contract it'
+      fconn = Enum.random(graph)
+      graph = contract(graph, fconn)
+      kargers_split(graph)
+    end
+  end
+
+  def nb_nodes(graph) do
+    graph |> nodes() |> Enum.count()
+  end
+
+  def nodes(graph) do
+    graph
+    |> Enum.map(fn {{lhs, rhs}, _} -> [lhs, rhs] end)
     |> List.flatten()
     |> Enum.uniq()
   end
 
-  def conns_to_graph(conns) do
-    for {lhs, rhs} <- conns, reduce: %{} do
-      graph ->
-        Map.update(graph, lhs, MapSet.new([rhs]), fn list -> MapSet.put(list, rhs) end)
-    end
-  end
-
-  def remove_full_conn(graph, {lhs, rhs}) do
-    graph
-    |> Map.update(lhs, MapSet.new([]), fn list -> MapSet.delete(list, rhs) end)
-    |> Map.update(rhs, MapSet.new([]), fn list -> MapSet.delete(list, lhs) end)
-  end
-
-  def ring(graph, node, visited \\ MapSet.new()) do
-    visited = MapSet.put(visited, node)
-    nxs = Map.get(graph, node)
-
-    nxs = MapSet.difference(nxs, visited)
-    visited = MapSet.union(visited, nxs)
-
-    if Enum.empty?(nxs) do
-      visited
+  def split_until_3(graph, count \\ 1) do
+    if Enum.count(graph) == 3 do
+      graph
     else
-      for nx <- nxs, reduce: visited do
-        visited ->
-          ring(graph, nx, visited)
+      new_graph = kargers_split(graph)
+
+      IO.puts(
+        "[DDA] splitting #{count}... nb conns: #{Enum.count(new_graph)}, #{inspect(new_graph |> Enum.map(fn {_, oconn} -> oconn end))}"
+      )
+
+      if Enum.count(new_graph) == 3 do
+        new_graph
+      else
+        split_until_3(graph, count + 1)
       end
     end
-  end
-
-  def can_reach_all(graph, node) do
-    size = graph |> Enum.count()
-    size == dfs(graph, node)
-  end
-
-  def dfs(graph, source) do
-    size = graph |> Enum.count()
-    visited = MapSet.new([source])
-    queue = [source]
-    dfs_inner(graph, size, queue, visited, 1)
-  end
-
-  def dfs_inner(_graph, size, _queue, _visited, size = _count), do: size
-  def dfs_inner(_graph, _size, [], _visited, count), do: count
-
-  def dfs_inner(graph, size, [nd | queue], visited, count) do
-    {queue, visited, count} =
-      for neighboor <- Map.get(graph, nd), reduce: {queue, visited, count} do
-        {queue, visited, count} ->
-          if !(neighboor in visited) do
-            {[neighboor | queue], MapSet.put(visited, neighboor), count + 1}
-          else
-            {queue, visited, count}
-          end
-      end
-
-    dfs_inner(graph, size, queue, visited, count)
   end
 
   def run(filename) do
     graph = parse_file(filename)
 
-    base_conns =
+    # naming convention:
+    #   lhs, rhs = base node names
+    #   conn = {lhs, rhs}
+    #   oconn = orignal connection {lhs, rhs}
+    #   fconn = full connection {conn, oconn}
+    graph =
       for {lhs, rhs} <- graph, rhs <- rhs do
-        {lhs, rhs}
+        # for each side, we will keep track of the original connection
+        # so that when we crontract, we can still find the original connection
+        # (contract will only change the first part of the tuple)
+        {{lhs, rhs}, {lhs, rhs}}
       end
-      |> Enum.uniq()
 
-    # let's full recreate the graph
-    conns = graph_to_conns(graph)
-    graph = conns_to_graph(conns)
+    graph = split_until_3(graph)
 
-    nodes = Map.keys(graph)
-    nb_nodes = Enum.count(nodes)
+    [{{lhs, rhs}, _oconn} | _] = graph
 
-    IO.inspect(Enum.count(base_conns), label: "[DDA] nb base conns")
-    IO.inspect(nb_nodes, label: "[DDA] nb nodes")
+    IO.inspect(graph |> Enum.map(fn {_, oconn} -> oconn end),
+      label: "[DDA] connections to remove to split"
+    )
 
-    # we want to picl a first node that has a lot of connections
-    sorted_nodes_by_nb_conn =
-      graph
-      |> Enum.to_list()
-      |> Enum.map(fn {node, v} -> {node, Enum.count(v)} end)
-      |> Enum.sort(fn {_, count1}, {_, count2} -> count1 > count2 end)
-      |> Enum.map(fn {node, _} -> node end)
-
-    node1 = List.last(sorted_nodes_by_nb_conn)
-
-    shuffle1 = base_conns
-    shuffle2 = base_conns
-    shuffle3 = base_conns
-
-    for conn1 <- shuffle1,
-        conn2 <- shuffle2,
-        conn3 <- shuffle3,
-        conn2 != conn1,
-        conn1 != conn3,
-        conn2 != conn3,
-        reduce: {0, MapSet.new(), false} do
-      {count, visited, true} ->
-        {count, visited, true}
-
-      {count, visited, false} ->
-        {lhs1, rhs1} = conn1
-        {lhs2, rhs2} = conn2
-        {lhs3, rhs3} = conn3
-        key = [lhs1, rhs1, lhs2, rhs2, lhs3, rhs3] |> Enum.sort() |> Enum.join("-")
-
-        if MapSet.member?(visited, key) do
-          {count + 1, visited, false}
-        else
-          graph =
-            graph
-            |> remove_full_conn(conn1)
-            |> remove_full_conn(conn2)
-            |> remove_full_conn(conn3)
-
-          visited = MapSet.put(visited, key)
-
-          if rem(count, 1000) == 0 do
-            IO.puts("[DDA] #{count}...")
-          end
-
-          done? =
-            if can_reach_all(graph, node1) do
-              false
-            else
-              IO.puts("[DDA] #{inspect(conn1)}, #{inspect(conn2)}, #{inspect(conn3)}")
-
-              non_full_rings =
-                nodes
-                |> Enum.map(fn node -> Enum.count(ring(graph, node)) end)
-                |> Enum.filter(fn count -> count != nb_nodes end)
-                |> Enum.uniq()
-
-              IO.puts("[DDA] -> will lead to splits #{inspect(non_full_rings)}")
-              true
-            end
-
-          {count + 1, visited, done?}
-        end
-    end
+    nb_lhs = lhs |> String.split("-") |> Enum.count()
+    nb_rhs = rhs |> String.split("-") |> Enum.count()
+    IO.puts("size of groups: #{nb_lhs}, #{nb_rhs} -> #{nb_lhs * nb_rhs}")
   end
 end
 
@@ -182,8 +115,9 @@ end
 defmodule P do
   def start() do
     Cache.setup()
-    P1.run("sample.txt")
-    # P1.run("input.txt")
+    # P1.run("sample0.txt")
+    # P1.run("sample.txt")
+    P1.run("input.txt")
     # P2.run("input.txt")
   end
 end
