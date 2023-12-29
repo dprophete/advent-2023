@@ -174,8 +174,8 @@ defmodule P do
   def start() do
     Cache.setup()
     # P1.run("sample.txt")
-    # P1.run("input.txt")
+    P1.run("input.txt")
     # P2.run("sample.txt")
-    P2.run("input.txt")
+    # P2.run("input.txt")
   end
 end

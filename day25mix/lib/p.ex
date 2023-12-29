@@ -109,15 +109,11 @@ defmodule P1 do
   end
 end
 
-defmodule P2 do
-end
-
 defmodule P do
   def start() do
     Cache.setup()
     # P1.run("sample0.txt")
-    # P1.run("sample.txt")
-    P1.run("input.txt")
-    # P2.run("input.txt")
+    P1.run("sample.txt")
+    # P1.run("input.txt")
   end
 end

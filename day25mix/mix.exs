@@ -23,8 +23,7 @@ defmodule P.MixProject do
     [
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:heap, "~> 3.0"},
-      {:matrix, git: "https://github.com/fabio-t/elixir-matrix"}
+      {:dda_lib, path: "../dda_lib"}
     ]
   end
 end

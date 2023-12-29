@@ -1,9 +1,9 @@
-defmodule P.MixProject do
+defmodule DdaLib.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :myapp,
+      app: :dda_lib,
       version: "0.1.0",
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
@@ -21,9 +21,10 @@ defmodule P.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:dda_lib, path: "../dda_lib"}
+      {:heap, "~> 3.0"}
     ]
   end
 end

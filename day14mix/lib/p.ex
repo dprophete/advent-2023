@@ -1,13 +1,6 @@
 #!/usr/bin/env elixir
 
 defmodule P1 do
-  # a base transpose function
-  def transpose(rows) do
-    rows
-    |> List.zip()
-    |> Enum.map(&Tuple.to_list/1)
-  end
-
   def parse_file(filename) do
     for row <- File.read!(filename) |> String.split("\n", trim: true) do
       String.to_charlist(row)
@@ -35,9 +28,9 @@ defmodule P1 do
 
   def move_north(platform) do
     platform
-    |> transpose()
+    |> Utils.transpose()
     |> Enum.map(&_move_west/1)
-    |> transpose()
+    |> Utils.transpose()
   end
 
   def move_west(platform) do
@@ -48,9 +41,9 @@ defmodule P1 do
   def move_south(platform) do
     platform
     |> Enum.reverse()
-    |> transpose()
+    |> Utils.transpose()
     |> Enum.map(&_move_west/1)
-    |> transpose()
+    |> Utils.transpose()
     |> Enum.reverse()
   end
 
@@ -180,7 +173,11 @@ defmodule P2 do
   end
 end
 
-# P1.run("sample.txt")
-# P1.run("input.txt")
-# P2.run("sample.txt")
-P2.run("input.txt")
+defmodule P do
+  def start() do
+    P1.run("sample.txt")
+    # P1.run("input.txt")
+    # P2.run("sample.txt")
+    # P2.run("input.txt")
+  end
+end
