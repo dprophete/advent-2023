@@ -217,6 +217,7 @@ defmodule P2 do
     end
   end
 
+  # predict number of Os in square {x, y} after iter iterations
   def predict_os_in_square({x, y}, iter) do
     cond do
       x == 0 && y == 0 ->
