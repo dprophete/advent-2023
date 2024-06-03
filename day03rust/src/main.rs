@@ -16,7 +16,7 @@ struct Number {
 
 #[derive(Debug)]
 struct Symbol {
-    _char: char,
+    char: char,
     x: i32,
     y: i32,
 }
@@ -37,7 +37,7 @@ impl Number {
         .concat()
     }
 
-    fn is_valid(&self, symbols: &Vec<Symbol>) -> bool {
+    fn is_adjacent_to_any_symbol(&self, symbols: &Vec<Symbol>) -> bool {
         let points = self.points_to_check();
         for (x, y) in points {
             if symbols.iter().any(|s| s.x == x && s.y == y) {
@@ -45,6 +45,25 @@ impl Number {
             }
         }
         return false;
+    }
+
+    fn is_adjacent_to_symbol(&self, symbol: &Symbol) -> bool {
+        let points = self.points_to_check();
+        for (x, y) in points {
+            if symbol.x == x && symbol.y == y {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+impl Symbol {
+    fn numbers_adjacent_to<'a>(&'a self, numbers: &'a [Number]) -> Vec<&'a Number> {
+        numbers
+            .iter()
+            .filter(|nb| nb.is_adjacent_to_symbol(&self))
+            .collect::<Vec<&'a Number>>()
     }
 }
 
@@ -67,7 +86,7 @@ fn find_symbols(idx: i32, line: &str) -> Vec<Symbol> {
     re.find_iter(line)
         .map(|mat| {
             return Symbol {
-                _char: mat.as_str().chars().next().unwrap(),
+                char: mat.as_str().chars().next().unwrap(),
                 x: mat.start() as i32,
                 y: idx as i32,
             };
@@ -90,7 +109,7 @@ fn p1(input: &str) {
 
     let valid_nbs = nbs
         .iter()
-        .filter(|nb| nb.is_valid(&symbols))
+        .filter(|nb| nb.is_adjacent_to_any_symbol(&symbols))
         .collect::<Vec<_>>();
 
     let sum = valid_nbs.iter().map(|nb| nb.nb).sum::<u32>();
@@ -101,35 +120,29 @@ fn p1(input: &str) {
 // p2
 //--------------------------------------------------------------------------------
 
-// fn process_line2(line: &str) -> i32 {
-//     let (_, turns) = line.split_once(": ").unwrap();
-//     let turns: Vec<_> = turns.split("; ").collect();
-//     let (mut blue, mut red, mut green) = (0, 0, 0);
-//     for turn in turns {
-//         let cubes = turn.split(", ").collect::<Vec<_>>();
-//         for cube in cubes {
-//             let (amount, color) = cube.split_once(" ").unwrap();
-//             let amount: i32 = amount.parse().unwrap();
-//             match color {
-//                 "blue" => blue = max(blue, amount),
-//                 "red" => red = max(red, amount),
-//                 "green" => green = max(green, amount),
-//                 _ => panic!("unexpected color"),
-//             }
-//         }
-//     }
-//     return blue * red * green;
-// }
-//
-// fn p2(input: &str) {
-//     let file_content = fs::read_to_string(input).expect("cannot read sample file");
-//     // let mut sum = 0;
-//     // for (_idx, line) in file_content.lines().enumerate() {
-//     //     sum += process_line2(line)
-//     // }
-//     let sum: i32 = file_content.lines().map(process_line2).sum();
-//     println!("p2 sum: {}", sum);
-// }
+fn p2(input: &str) {
+    let file_content = fs::read_to_string(input).expect("cannot read sample file");
+    let idx_and_lines = file_content.lines().enumerate();
+
+    let nbs = idx_and_lines
+        .clone()
+        .flat_map(|(idx, line)| find_numbers(idx as i32, line))
+        .collect::<Vec<_>>();
+
+    let gears = idx_and_lines
+        .flat_map(|(idx, line)| find_symbols(idx as i32, line))
+        .filter(|s| s.char == '*')
+        .collect::<Vec<_>>();
+
+    let sum = gears
+        .iter()
+        .filter_map(|gear| match gear.numbers_adjacent_to(&nbs).as_slice() {
+            [a, b] => Some(a.nb * b.nb),
+            _ => None,
+        })
+        .sum::<u32>();
+    println!("p2 sum: {}", sum);
+}
 
 //--------------------------------------------------------------------------------
 // main
@@ -138,6 +151,6 @@ fn p1(input: &str) {
 fn main() {
     p1("sample.txt");
     p1("input.txt");
-    // p2("sample.txt");
-    // p2("input.txt");
+    p2("sample.txt");
+    p2("input.txt");
 }
