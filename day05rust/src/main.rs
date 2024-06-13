@@ -1,43 +1,35 @@
-use std::{cmp, fs};
+use std::{cmp, fs, ops::RangeInclusive};
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 struct SeedRange {
-    src: i64,
-    end: i64,
+    rg: RangeInclusive<i64>,
     mapped: bool,
 }
 
 #[derive(Debug)]
-struct Range {
-    dst: i64,
-    src: i64,
-    end: i64,
+struct XRange {
+    rg: RangeInclusive<i64>,
+    delta: i64,
 }
 
-impl Range {
-    fn maybe_map_seed(&self, seed: i64) -> Option<i64> {
-        if seed >= self.src && seed <= self.end {
-            return Some(seed - self.src + self.dst);
-        }
-        return None;
-    }
-
+impl XRange {
     fn map_seed_range(&self, sr: &SeedRange) -> Vec<SeedRange> {
         if sr.mapped {
             return vec![sr.clone()];
         }
         let mut res = vec![];
-        let mut sr_src = sr.src;
-        let offset = self.dst - self.src;
+        let mut sr_src = *sr.rg.start();
+        let sr_end = *sr.rg.end();
+        let self_src = *self.rg.start();
+        let self_end = *self.rg.end();
 
         // left part (identity)
-        if sr.src < self.src {
+        if sr_src < self_src {
             // we have a piece on the left of the range
-            if sr.end < self.src {
+            if sr_end < self_src {
                 // are completely on the left of the range -> add identity and we are done
                 res.push(SeedRange {
-                    src: sr.src,
-                    end: sr.end,
+                    rg: sr_src..=sr_end,
                     mapped: false,
                 });
                 return res;
@@ -45,37 +37,33 @@ impl Range {
 
             // let's remove slice on the left of src
             res.push(SeedRange {
-                src: sr.src,
-                end: self.src - 1,
+                rg: sr_src..=(self_src - 1),
                 mapped: false,
             });
-            sr_src = self.src;
+            sr_src = *self.rg.start();
         }
 
         // middle part (need to be projected)
-        if sr_src <= self.end {
-            if sr.end <= self.end {
+        if sr_src <= self_end {
+            if sr_end <= self_end {
                 // we are completely inside the range
                 res.push(SeedRange {
-                    src: sr_src + offset,
-                    end: sr.end + offset,
+                    rg: sr_src + self.delta..=sr_end + self.delta,
                     mapped: true,
                 });
                 return res;
             }
 
             res.push(SeedRange {
-                src: sr_src + offset,
-                end: self.end + offset,
+                rg: sr_src + self.delta..=self_end + self.delta,
                 mapped: true,
             });
-            sr_src = self.end + 1;
+            sr_src = self_end + 1;
         }
 
         // right part (identity)
         res.push(SeedRange {
-            src: sr_src,
-            end: sr.end,
+            rg: sr_src..=sr_end,
             mapped: false,
         });
         return res;
@@ -85,14 +73,14 @@ impl Range {
 #[derive(Debug)]
 struct Section {
     name: String,
-    ranges: Vec<Range>,
+    ranges: Vec<XRange>,
 }
 
 impl Section {
     fn map_seed(&self, seed: i64) -> i64 {
-        for rg in self.ranges.iter() {
-            if let Some(dst) = rg.maybe_map_seed(seed) {
-                return dst;
+        for xrg in self.ranges.iter() {
+            if xrg.rg.contains(&seed) {
+                return seed + xrg.delta;
             }
         }
         return seed;
@@ -120,18 +108,6 @@ fn map_seed(mut seed: i64, sections: &Vec<Section>) -> i64 {
     return seed;
 }
 
-fn map_seed_range(sr: &SeedRange, sections: &Vec<Section>) -> Vec<SeedRange> {
-    let mut res = vec![sr.clone()];
-    for section in sections.iter() {
-        res = res
-            .iter()
-            .flat_map(|sr| section.map_seed_range(sr))
-            .collect();
-    }
-
-    return res;
-}
-
 fn str_to_list_of_ints(s: &str) -> Vec<i64> {
     s.split(" ")
         .map(|x| x.parse::<i64>().unwrap())
@@ -139,7 +115,6 @@ fn str_to_list_of_ints(s: &str) -> Vec<i64> {
 }
 
 fn p1(input: &str) {
-    // let mut sum = 0;
     let mut file_content = fs::read_to_string(input).expect("cannot read sample file");
     file_content.pop();
 
@@ -157,13 +132,10 @@ fn p1(input: &str) {
         let mut ranges = vec![];
         for range_str in ranges_str {
             let rg = str_to_list_of_ints(range_str);
-            let [dst, src, len] = rg[..] else {
-                panic!("invalid range")
-            };
-            ranges.push(Range {
-                dst,
-                src,
-                end: src + len - 1,
+            let [dst, src, len] = rg[..].try_into().unwrap();
+            ranges.push(XRange {
+                rg: src..=src + len - 1,
+                delta: dst - src,
             })
         }
 
@@ -184,6 +156,18 @@ fn p1(input: &str) {
 // p2
 //--------------------------------------------------------------------------------
 
+fn map_seed_range(sr: &SeedRange, sections: &Vec<Section>) -> Vec<SeedRange> {
+    let mut res = vec![sr.clone()];
+    for section in sections.iter() {
+        res = res
+            .iter()
+            .flat_map(|sr| section.map_seed_range(sr))
+            .collect();
+    }
+
+    return res;
+}
+
 fn p2(input: &str) {
     // let mut sum = 0;
     let mut file_content = fs::read_to_string(input).expect("cannot read sample file");
@@ -201,8 +185,7 @@ fn p2(input: &str) {
             panic!("invalid chunk")
         };
         seeds.push(SeedRange {
-            src: seed,
-            end: seed + len - 1,
+            rg: seed..=seed + len - 1,
             mapped: false,
         });
     }
@@ -215,13 +198,10 @@ fn p2(input: &str) {
         let mut ranges = vec![];
         for range_str in ranges_str {
             let rg = str_to_list_of_ints(range_str);
-            let [dst, src, len] = rg[..] else {
-                panic!("invalid range")
-            };
-            ranges.push(Range {
-                dst,
-                src,
-                end: src + len - 1,
+            let [dst, src, len] = rg[..].try_into().unwrap();
+            ranges.push(XRange {
+                rg: src..=src + len - 1,
+                delta: dst - src,
             })
         }
 
@@ -234,8 +214,8 @@ fn p2(input: &str) {
     let mut min = i64::MAX;
     for sr in seeds.iter() {
         let mut res = map_seed_range(sr, &sections);
-        res.sort_by_key(|sr| sr.src);
-        min = cmp::min(min, res[0].src);
+        res.sort_by_key(|sr| *sr.rg.start());
+        min = cmp::min(min, *res[0].rg.start());
     }
 
     println!("p2 min for {}: {}", input, min);
